@@ -1,5 +1,6 @@
 # compile files
 build/
+cmake-build-debug
 *.log
 
 # binaries
@@ -10,6 +11,9 @@ scene/
 .cproject
 .project
 .settings/
+
+# clion files
+.idea
 
 living_room_*
 livingRoom*.gt.freiburg
