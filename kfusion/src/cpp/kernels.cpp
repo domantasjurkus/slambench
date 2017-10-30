@@ -71,12 +71,6 @@ bool print_kernel_timing = false;
 	struct timespec tick_clockData;
 	struct timespec tock_clockData;
 #endif
-
-// Added by Dom - uncomment when compiling with ../doms_compile.sh
-/*int main(void) {
-
-	return 0;
-}*/
 	
 void Kfusion::languageSpecificConstructor() {
 
@@ -160,6 +154,35 @@ void initVolumeKernel(Volume volume) {
 			}
 		}
 	TOCK("initVolumeKernel", volume.size.x * volume.size.y * volume.size.z);
+}
+
+void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {
+	TICK();
+	unsigned int x, y;
+	
+	#pragma omp parallel for shared(out), private(x,y)
+	for (y = 0; y < imageSize.y; y++) {
+		for (x = 0; x < imageSize.x; x++) {
+			const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
+			const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
+			const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
+			const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
+
+			const float3 left  = in[pleft.x  + imageSize.x * pleft.y];
+			const float3 right = in[pright.x + imageSize.x * pright.y];
+			const float3 up    = in[pup.x    + imageSize.x * pup.y];
+			const float3 down  = in[pdown.x  + imageSize.x * pdown.y];
+
+			if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
+				out[x + y * imageSize.x].x = KFUSION_INVALID;
+				continue;
+			}
+			const float3 dxv = right - left;
+			const float3 dyv = down - up;
+			out[x + y * imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
+		}
+	}
+	TOCK("vertex2normalKernel", imageSize.x * imageSize.y);
 }
 
 void new_reduce(int blockIndex, float * out, TrackData* J, const uint2 Jsize, const uint2 size) {
@@ -404,110 +427,6 @@ void reduceKernel(float * out, TrackData* J, const uint2 Jsize, const uint2 size
 		//std::cerr << "\n";
 	}
 	TOCK("reduceKernel", 512);
-}
-
-void trackKernel(TrackData* output, const float3* inVertex,
-	const float3* inNormal, uint2 inSize, const float3* refVertex,
-	const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
-	const Matrix4 view, const float dist_threshold,
-	const float normal_threshold) {
-
-	TICK();
-	uint2 pixel = make_uint2(0, 0);
-	unsigned int pixely, pixelx;
-	
-	#pragma omp parallel for shared(output), private(pixel,pixelx,pixely)
-	for (pixely = 0; pixely < inSize.y; pixely++) {
-		for (pixelx = 0; pixelx < inSize.x; pixelx++) {
-			pixel.x = pixelx;
-			pixel.y = pixely;
-
-			TrackData & row = output[pixel.x + pixel.y * refSize.x];
-
-			if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
-				row.result = -1;
-				continue;
-			}
-
-			const float3 projectedVertex = Ttrack
-					* inVertex[pixel.x + pixel.y * inSize.x];
-			const float3 projectedPos = view * projectedVertex;
-			const float2 projPixel = make_float2(
-					projectedPos.x / projectedPos.z + 0.5f,
-					projectedPos.y / projectedPos.z + 0.5f);
-			if (projPixel.x < 0 || projPixel.x > refSize.x - 1
-					|| projPixel.y < 0 || projPixel.y > refSize.y - 1) {
-				row.result = -2;
-				continue;
-			}
-
-			const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
-			const float3 referenceNormal = refNormal[refPixel.x
-					+ refPixel.y * refSize.x];
-
-			if (referenceNormal.x == KFUSION_INVALID) {
-				row.result = -3;
-				continue;
-			}
-
-			const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x]
-					- projectedVertex;
-			const float3 projectedNormal = rotate(Ttrack,
-					inNormal[pixel.x + pixel.y * inSize.x]);
-
-			if (length(diff) > dist_threshold) {
-				row.result = -4;
-				continue;
-			}
-			if (dot(projectedNormal, referenceNormal) < normal_threshold) {
-				row.result = -5;
-				continue;
-			}
-			row.result = 1;
-			row.error = dot(referenceNormal, diff);
-			((float3 *) row.J)[0] = referenceNormal;
-			((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
-		}
-	}
-	TOCK("trackKernel", inSize.x * inSize.y);
-}
-
-void halfSampleRobustImageKernel(float* out, const float* in, uint2 inSize,
-	const float e_d, const int r) {
-	
-	TICK();
-	uint2 outSize = make_uint2(inSize.x / 2, inSize.y / 2);
-	unsigned int y;
-	
-	#pragma omp parallel shared(out), private(y)
-	for (y = 0; y < outSize.y; y++) {
-		for (unsigned int x = 0; x < outSize.x; x++) {
-			uint2 pixel = make_uint2(x, y);
-			const uint2 centerPixel = 2 * pixel;
-
-			float sum = 0.0f;
-			float t = 0.0f;
-			const float center = in[centerPixel.x
-					+ centerPixel.y * inSize.x];
-			for (int i = -r + 1; i <= r; ++i) {
-				for (int j = -r + 1; j <= r; ++j) {
-					uint2 cur = make_uint2(
-							clamp(
-									make_int2(centerPixel.x + j,
-											centerPixel.y + i), make_int2(0),
-									make_int2(2 * outSize.x - 1,
-											2 * outSize.y - 1)));
-					float current = in[cur.x + cur.y * inSize.x];
-					if (fabsf(current - center) < e_d) {
-						sum += 1.0f;
-						t += current;
-					}
-				}
-			}
-			out[pixel.x + pixel.y * outSize.x] = t / sum;
-		}
-	}
-	TOCK("halfSampleRobustImageKernel", outSize.x * outSize.y);
 }
 
 void integrateKernel(Volume vol, const float* depth, uint2 depthSize,

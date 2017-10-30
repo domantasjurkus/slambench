@@ -37,13 +37,18 @@ set(common_compile_flags "")
 
  # ----------------- CPP VERSION ----------------- 
 
-add_library(${appname}-cpp src/cpp/kernels.cpp src/cpp/preprocess.cpp src/cpp/render.cpp)
+ set(CPP-SOURCES
+    src/cpp/preprocess.cpp
+    src/cpp/tracking.cpp
+    src/cpp/render.cpp
+    src/cpp/kernels.cpp)
+add_library(${appname}-cpp ${CPP-SOURCES})
 target_link_libraries(${appname}-cpp   ${common_libraries})
 add_version(${appname} cpp "" "")
 
  # ----------------- OPENMP VERSION ----------------- 
 
-add_library(${appname}-openmp src/cpp/kernels.cpp src/cpp/preprocess.cpp src/cpp/render.cpp)
+add_library(${appname}-openmp ${CPP-SOURCES})
 target_link_libraries(${appname}-openmp   ${common_libraries})	
 SET_TARGET_PROPERTIES(${appname}-openmp PROPERTIES COMPILE_FLAGS "-fopenmp")
 add_version(${appname} openmp "-fopenmp" "-fopenmp")
