@@ -1,6 +1,7 @@
 # compile files
 build/
 *.log
+cmake-build-debug
 
 # binaries
 kfusion/tests/dataset/
@@ -10,6 +11,9 @@ scene/
 .cproject
 .project
 .settings/
+
+# intellij files
+.idea/
 
 living_room_*
 livingRoom*.gt.freiburg
