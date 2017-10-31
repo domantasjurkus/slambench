@@ -108,16 +108,18 @@ public:
 						TooN::makeVector(initPose.x, initPose.y, initPose.z, 0,
 								0, 0)));
 		this->iterations.clear();
-		for (std::vector<int>::iterator it = pyramid.begin();
-				it != pyramid.end(); it++) {
+
+		/*for (std::vector<int>::iterator it = pyramid.begin(); it != pyramid.end(); it++) {
 			this->iterations.push_back(*it);
-		}
+		}*/
+		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(iterations));
 
 		step = min(volumeDimensions) / max(volumeResolution);
 		viewPose = &pose;
 		this->languageSpecificConstructor();
 	}
-//Allow a kfusion object to be created with a pose which include orientation as well as position
+
+	// Initial pose with orientation
 	Kfusion(uint2 inputSize, uint3 volumeResolution, float3 volumeDimensions,
 			Matrix4 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
@@ -127,10 +129,12 @@ public:
 		pose = initPose;
 
 		this->iterations.clear();
-		for (std::vector<int>::iterator it = pyramid.begin();
-				it != pyramid.end(); it++) {
+		
+		/*for (std::vector<int>::iterator it = pyramid.begin(); it != pyramid.end(); it++) {
 			this->iterations.push_back(*it);
-		}
+		}*/
+
+		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(iterations));
 
 		step = min(volumeDimensions) / max(volumeResolution);
 		viewPose = &pose;
