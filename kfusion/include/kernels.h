@@ -96,49 +96,40 @@ private:
 	void raycast(uint frame, const float4& k, float mu);
 
 public:
+	void init(uint3 volumeResolution, float3 volumeDimensions, std::vector<int> & pyramid) {
+		this->volumeDimensions = volumeDimensions;
+		this->volumeResolution = volumeResolution;
+		this->iterations.clear();
+
+		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(this->iterations));
+
+		this->step = min(volumeDimensions) / max(volumeResolution);
+		this->languageSpecificConstructor();
+	}
+
 	Kfusion(uint2 inputSize, uint3 volumeResolution, float3 volumeDimensions,
 			float3 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
 
+		init(volumeResolution, volumeDimensions, pyramid);
+		
 		this->_initPose = initPose;
-		this->volumeDimensions = volumeDimensions;
-		this->volumeResolution = volumeResolution;
-		pose = toMatrix4(
-				TooN::SE3<float>(
-						TooN::makeVector(initPose.x, initPose.y, initPose.z, 0,
-								0, 0)));
-		this->iterations.clear();
-
-		/*for (std::vector<int>::iterator it = pyramid.begin(); it != pyramid.end(); it++) {
-			this->iterations.push_back(*it);
-		}*/
-		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(iterations));
-
-		step = min(volumeDimensions) / max(volumeResolution);
+		pose = toMatrix4(TooN::SE3<float>(
+			TooN::makeVector(initPose.x, initPose.y, initPose.z, 0,0, 0)
+		));
 		viewPose = &pose;
-		this->languageSpecificConstructor();
 	}
 
-	// Initial pose with orientation
+	// initPose with initial orientation
 	Kfusion(uint2 inputSize, uint3 volumeResolution, float3 volumeDimensions,
 			Matrix4 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
+
+		init(volumeResolution, volumeDimensions, pyramid);
+
 		this->_initPose = getPosition();
-		this->volumeDimensions = volumeDimensions;
-		this->volumeResolution = volumeResolution;
 		pose = initPose;
-
-		this->iterations.clear();
-		
-		/*for (std::vector<int>::iterator it = pyramid.begin(); it != pyramid.end(); it++) {
-			this->iterations.push_back(*it);
-		}*/
-
-		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(iterations));
-
-		step = min(volumeDimensions) / max(volumeResolution);
 		viewPose = &pose;
-		this->languageSpecificConstructor();
 	}
 
 	void languageSpecificConstructor();
@@ -161,7 +152,7 @@ public:
 	}
 	void computeFrame(const ushort * inputDepth, const uint2 inputSize,
 			float4 k, uint integration_rate, uint tracking_rate,
-			  float icp_threshold, float mu, const uint frame) ;
+			float icp_threshold, float mu, const uint frame);
 
 	bool preprocessing(const ushort * inputDepth, const uint2 inputSize);
 	bool tracking(float4 k, float icp_threshold, uint tracking_rate,
