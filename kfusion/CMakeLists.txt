@@ -41,6 +41,12 @@ add_library(${appname}-cpp  src/cpp/kernels.cpp)
 target_link_libraries(${appname}-cpp   ${common_libraries})	
 add_version(${appname} cpp "" "")
 
+ # ----------------- STL VERSION ----------------- 
+
+ add_library(${appname}-stl  src/stl/kernels.cpp src/stl/preprocess.cpp src/stl/track.cpp)
+ target_link_libraries(${appname}-stl   ${common_libraries})	
+ add_version(${appname} stl "" "")
+
  # ----------------- OPENMP VERSION ----------------- 
 
 add_library(${appname}-openmp  src/cpp/kernels.cpp)

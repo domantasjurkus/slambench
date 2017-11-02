@@ -1,0 +1,1 @@
+./build/kfusion/kfusion-benchmark-stl -i ../living_room_small.raw  -s 4.8 -p 0.34,0.5,0.24 -z 4 -c 4 -r 1 -k 481.2,480,320,240
