@@ -1,41 +1,5 @@
 #include <kernels.h>
 
-#ifdef __APPLE__
-    #include <mach/clock.h>
-    #include <mach/mach.h>
-
-    clock_serv_t cclock;
-	mach_timespec_t tick_clockData;
-	mach_timespec_t tock_clockData;
-
-	#define TICK() { if (print_kernel_timing) {\
-		host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);\
-		clock_get_time(cclock, &tick_clockData);\
-		mach_port_deallocate(mach_task_self(), cclock);\
-	}}
-
-	#define TOCK(str,size) { if (print_kernel_timing) {\
-		host_get_clock_service(mach_host_self(), SYSTEM_CLOCK, &cclock);\
-		clock_get_time(cclock, &tock_clockData);\
-		mach_port_deallocate(mach_task_self(), cclock);\
-		std::cerr<< str << " ";\
-		if((tock_clockData.tv_sec > tick_clockData.tv_sec) && (tock_clockData.tv_nsec >= tick_clockData.tv_nsec))   std::cerr<< tock_clockData.tv_sec - tick_clockData.tv_sec << std::setfill('0') << std::setw(9);\
-        std::cerr  << (( tock_clockData.tv_nsec - tick_clockData.tv_nsec) + ((tock_clockData.tv_nsec<tick_clockData.tv_nsec)?1000000000:0)) << " " <<  size << std::endl;\
-    }}
-#else
-    struct timespec tick_clockData;
-    struct timespec tock_clockData;
-
-	#define TICK() { if (print_kernel_timing) {clock_gettime(CLOCK_MONOTONIC, &tick_clockData);}}
-
-	#define TOCK(str,size)  {if (print_kernel_timing) {clock_gettime(CLOCK_MONOTONIC, &tock_clockData); std::cerr<< str << " ";\
-		if((tock_clockData.tv_sec > tick_clockData.tv_sec) && (tock_clockData.tv_nsec >= tick_clockData.tv_nsec))   std::cerr<< tock_clockData.tv_sec - tick_clockData.tv_sec << std::setfill('0') << std::setw(9);\
-        std::cerr  << (( tock_clockData.tv_nsec - tick_clockData.tv_nsec) + ((tock_clockData.tv_nsec<tick_clockData.tv_nsec)?1000000000:0)) << " " <<  size << std::endl;\
-    }}
-#endif
-
-bool print_kernel_timing = false;
-
 // input once
 float * gaussian;
 
@@ -53,143 +17,246 @@ Matrix4 oldPose;
 Matrix4 raycastPose;
 float3 ** inputVertex;
 float3 ** inputNormal;
+	
+void Kfusion::languageSpecificConstructor() {
+	// internal buffers to initialize
+	reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
+
+	ScaledDepth = (float**)  calloc(sizeof(float*) * iterations.size(), 1);
+	inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
+	inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
+
+	for (unsigned int i = 0; i < iterations.size(); ++i) {
+		ScaledDepth[i] = (float*)  calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+		inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+		inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+	}
+
+	floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
+	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
+	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
+	trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
+
+	// ********* BEGIN : Generate the gaussian *************
+	size_t gaussianS = radius * 2 + 1;
+	gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
+	int x;
+	for (unsigned int i = 0; i < gaussianS; i++) {
+		x = i - 2;
+		gaussian[i] = expf(-(x * x) / (2 * delta * delta));
+	}
+	// ********* END : Generate the gaussian *************
+
+	volume.init(volumeResolution, volumeDimensions);
+	reset();
+}
 
 Kfusion::~Kfusion() {
-    
-        free(floatDepth);
-        free(trackingResult);
-    
-        free(reductionoutput);
-        for (unsigned int i = 0; i < iterations.size(); ++i) {
-            free(ScaledDepth[i]);
-            free(inputVertex[i]);
-            free(inputNormal[i]);
-        }
-        free(ScaledDepth);
-        free(inputVertex);
-        free(inputNormal);
-    
-        free(vertex);
-        free(normal);
-        free(gaussian);
-    
-        volume.release();
-    }
-    void Kfusion::reset() {
-        initVolumeKernel(volume);
-    }
 
-void Kfusion::languageSpecificConstructor() {
-    if (getenv("KERNEL_TIMINGS")) {
-        print_kernel_timing = true;
-    }
+	free(floatDepth);
+	free(trackingResult);
 
-    // internal buffers to initialize
-    reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
+	free(reductionoutput);
+	for (unsigned int i = 0; i < iterations.size(); ++i) {
+		free(ScaledDepth[i]);
+		free(inputVertex[i]);
+		free(inputNormal[i]);
+	}
+	free(ScaledDepth);
+	free(inputVertex);
+	free(inputNormal);
 
-    ScaledDepth = (float**) calloc(sizeof(float*) * iterations.size(), 1);
-    inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
-    inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
+	free(vertex);
+	free(normal);
+	free(gaussian);
 
-    for (unsigned int i = 0; i < iterations.size(); ++i) {
-        ScaledDepth[i] = (float*)  calloc(sizeof(float)*(computationSize.x*computationSize.y)/(int)pow(2,i),1);
-        inputVertex[i] = (float3*) calloc(sizeof(float3)*(computationSize.x*computationSize.y)/(int)pow(2,i),1);
-        inputNormal[i] = (float3*) calloc(sizeof(float3)*(computationSize.x*computationSize.y)/(int)pow(2,i),1);
-    }
-
-    floatDepth = (float*) calloc(sizeof(float)*computationSize.x*computationSize.y,1);
-    vertex = (float3*)    calloc(sizeof(float3)*computationSize.x*computationSize.y,1);
-    normal = (float3*)    calloc(sizeof(float3)*computationSize.x*computationSize.y,1);
-    trackingResult = (TrackData*) calloc(sizeof(TrackData)*computationSize.x*computationSize.y,1);
-
-    // ********* BEGIN : Generate the gaussian *************
-    size_t gaussianS = radius*2 + 1;
-    gaussian = (float*) calloc(gaussianS*sizeof(float),1);
-
-    // Todo: STL here
-    for (unsigned int i=0; i<gaussianS; i++) {
-        gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
-    }
-    // ********* END : Generate the gaussian *************
-
-    volume.init(volumeResolution, volumeDimensions);
-    reset();
+	volume.release();
 }
-    
-void initVolumeKernel(Volume volume) {}
+void Kfusion::reset() {
+	initVolumeKernel(volume);
+}
 
-void depth2vertexKernel(float3* vertex, const float * depth, uint2 imageSize, const Matrix4 invK) {}
+void init() {};
 
-void reduceKernel(float * out, TrackData* J, const uint2 Jsize, const uint2 size) {}
+void clean() {};
 
-// TrackData includes the errors (for far I am to the pixel in front of me)
-void trackKernel(TrackData* output, const float3* inVertex,
-		const float3* inNormal, uint2 inSize, const float3* refVertex,
-		const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
-		const Matrix4 view, const float dist_threshold,
-		const float normal_threshold) {}
-
-void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {}
-
-void halfSampleRobustImageKernel(float* out, const float* in, uint2 imageSize,
-		const float e_d, const int r) {}
+void initVolumeKernel(Volume volume) {
+	for (unsigned int x = 0; x < volume.size.x; x++) {
+		for (unsigned int y = 0; y < volume.size.y; y++) {
+			for (unsigned int z = 0; z < volume.size.z; z++) {
+				//std::cout <<  x << " " << y << " " << z <<"\n";
+				volume.setints(x, y, z, make_float2(1.0f, 0.0f));
+			}
+        }
+    }
+}
 
 bool updatePoseKernel(Matrix4 & pose, const float * output, float icp_threshold) {
+	bool res = false;
+	// Update the pose regarding the tracking result
+	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output);
+	TooN::Vector<6> x = solve(values[0].slice<1, 27>());
+	TooN::SE3<> delta(x);
+	pose = toMatrix4(delta) * pose;
 
-    return false;
+	// Return validity test result of the tracking
+	if (norm(x) < icp_threshold)
+		res = true;
+
+	return res;
 }
 
-bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output,
-        uint2 imageSize, float track_threshold) {
+// Check the tracking result, and go back to the previous camera position if necessary
+bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output, uint2 imageSize, float track_threshold) {
+	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output);
 
-    return false;
+	if ((std::sqrt(values(0, 0) / values(0, 28)) > 2e-2)
+			|| (values(0, 28) / (imageSize.x * imageSize.y) < track_threshold)) {
+		pose = oldPose;
+		return false;
+    }
+	return true;
 }
-
-// Given the point cloud, how to update the volume
-// In-place transformation (side-effect to an argument) because we (usually) don't have enough memory
-// to store two Volumes in RAM
-void integrateKernel(Volume vol, const float* depth, uint2 imageSize,
-		const Matrix4 invTrack, const Matrix4 K, const float mu,
-		const float maxweight) {}
-
-void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
-		const Volume integration, const Matrix4 view, const float nearPlane,
-        const float farPlane, const float step, const float largestep) {}
-        
-void computeFrame(const ushort * inputDepth, const uint2 inputSize,
-        float4 k, uint integration_rate, uint tracking_rate,
-        float icp_threshold, float mu, const uint frame);
-
-
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
-    mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
-    bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize, gaussian, e_delta, radius);
+	mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
+	bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize, gaussian, e_delta, radius);
 	return true;
 }
 
 bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint frame) {
+	if (frame % tracking_rate != 0)
+		return false;
 
-    return false;
+	// half sample the input depth maps into the pyramid levels
+    // STL: foreach(iteration)
+	for (unsigned int i = 1; i < iterations.size(); ++i) {
+        // Produce pyramid
+		halfSampleRobustImageKernel(ScaledDepth[i], ScaledDepth[i - 1],
+				make_uint2(computationSize.x / (int) pow(2, i - 1),
+						computationSize.y / (int) pow(2, i - 1)), e_delta * 3, 1);
+	}
+
+	// prepare the 3D information from the input depth maps
+	uint2 localimagesize = computationSize;
+
+    // STL: foreach(iteration) no overlap
+	for (unsigned int i = 0; i < iterations.size(); ++i) {
+		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
+		depth2vertexKernel(inputVertex[i], ScaledDepth[i], localimagesize, invK);
+		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
+		localimagesize = make_uint2(localimagesize.x / 2, localimagesize.y / 2);
+	}
+
+	oldPose = pose;
+	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
+
+    // ICP
+	// Pyramid
+	// Start from smallest image, then bigger, then biggest
+	for (int level = iterations.size() - 1; level >= 0; --level) {
+		uint2 localimagesize = make_uint2(
+				computationSize.x / (int) pow(2, level),
+				computationSize.y / (int) pow(2, level));
+
+		// For each pyramid level
+		for (int i = 0; i < iterations[level]; ++i) {
+
+			// Both point clouds
+            // compute the error
+			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
+					localimagesize, vertex, normal, computationSize, pose,
+					projectReference, dist_threshold, normal_threshold);
+
+			// Sum of the errors
+			reduceKernel(reductionoutput, trackingResult, computationSize,
+					localimagesize);
+
+			// correct for the errors
+			if (updatePoseKernel(pose, reductionoutput, icp_threshold))
+				break;
+
+		}
+	}
+	return checkPoseKernel(pose, oldPose, reductionoutput, computationSize, track_threshold);
 }
 
 bool Kfusion::raycasting(float4 k, float mu, uint frame) {
+	bool doRaycast = false;
 
-    return false;
+	if (frame > 2) {
+		raycastPose = pose;
+		raycastKernel(vertex, normal, computationSize, volume,
+				raycastPose * getInverseCameraMatrix(k), nearPlane, farPlane,
+				step, 0.75f * mu);
+	}
+
+	return doRaycast;
 }
 
 bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame) {
+	bool doIntegrate = checkPoseKernel(pose, oldPose, reductionoutput, computationSize, track_threshold);
 
-    return false;
+	if ((doIntegrate && ((frame % integration_rate) == 0)) || (frame <= 3)) {
+		integrateKernel(volume, floatDepth, computationSize, inverse(pose),
+				getCameraMatrix(k), mu, maxweight);
+		doIntegrate = true;
+	} else {
+		doIntegrate = false;
+	}
+
+	return doIntegrate;
 }
 
-void Kfusion::dumpVolume(const char *filename) {}
+void Kfusion::dumpVolume(const char *filename) {
+	std::ofstream fDumpFile;
 
-void Kfusion::renderVolume(uchar4 * out, const uint2 outputSize, int frame, int rate, float4 k, float mu) {}
+	if (filename == NULL) {
+		return;
+	}
 
-void Kfusion::renderTrack(uchar4 * out, const uint2 outputSize) {}
+	std::cout << "Dumping the volumetric representation on file: " << filename
+			<< std::endl;
+	fDumpFile.open(filename, std::ios::out | std::ios::binary);
+	if (fDumpFile.fail()) {
+		std::cout << "Error opening file: " << filename << std::endl;
+		exit(1);
+	}
 
-void Kfusion::renderDepth(uchar4* out, uint2 outputSize) {}
+	// Dump on file without the y component of the short2 variable
+	for (unsigned int i = 0; i < volume.size.x * volume.size.y * volume.size.z; i++) {
+		fDumpFile.write((char *) (volume.data + i), sizeof(short));
+	}
 
-void synchroniseDevices() {}
+	fDumpFile.close();
+}
 
+void Kfusion::renderVolume(uchar4 * out, uint2 outputSize, int frame,
+		int raycast_rendering_rate, float4 k, float largestep) {
+	if (frame % raycast_rendering_rate == 0)
+		renderVolumeKernel(out, outputSize, volume,
+				*(this->viewPose) * getInverseCameraMatrix(k), nearPlane,
+				farPlane * 2.0f, step, largestep, light, ambient);
+}
+
+void Kfusion::renderTrack(uchar4 * out, uint2 outputSize) {
+	renderTrackKernel(out, trackingResult, outputSize);
+}
+
+void Kfusion::renderDepth(uchar4 * out, uint2 outputSize) {
+	renderDepthKernel(out, floatDepth, outputSize, nearPlane, farPlane);
+}
+
+void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
+			 float4 k, uint integration_rate, uint tracking_rate,
+			 float icp_threshold, float mu, const uint frame) {
+    preprocessing(inputDepth, inputSize);
+    _tracked = tracking(k, icp_threshold, tracking_rate, frame);
+    _integrated = integration(k, integration_rate, mu, frame);
+    raycasting(k, mu, frame);
+}
+
+
+void synchroniseDevices() {
+	// Nothing to do in the C++ implementation
+}

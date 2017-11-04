@@ -42,8 +42,14 @@ target_link_libraries(${appname}-cpp   ${common_libraries})
 add_version(${appname} cpp "" "")
 
  # ----------------- STL VERSION ----------------- 
-
- add_library(${appname}-stl  src/stl/kernels.cpp src/stl/preprocess.cpp src/stl/track.cpp)
+ set(STL_FILES  src/stl/kernels.cpp
+                src/stl/preprocess.cpp
+                src/stl/track.cpp
+                src/stl/integrate.cpp
+                src/stl/raycast.cpp
+                src/stl/raycasting.cpp
+                src/stl/render.cpp)
+ add_library(${appname}-stl ${STL_FILES} )
  target_link_libraries(${appname}-stl   ${common_libraries})	
  add_version(${appname} stl "" "")
 

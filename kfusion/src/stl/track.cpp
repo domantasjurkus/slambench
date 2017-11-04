@@ -84,71 +84,68 @@ void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {
 
 // TrackData includes the errors (for far I am to the pixel in front of me)
 void trackKernel(TrackData* output, const float3* inVertex,
-    const float3* inNormal, uint2 inSize, const float3* refVertex,
-    const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
-    const Matrix4 view, const float dist_threshold,
-    const float normal_threshold) {
+        const float3* inNormal, uint2 inSize, const float3* refVertex,
+        const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
+        const Matrix4 view, const float dist_threshold,
+        const float normal_threshold) {
 
-uint2 pixel = make_uint2(0, 0);
-unsigned int pixely, pixelx;
-#pragma omp parallel for \
-    shared(output), private(pixel,pixelx,pixely)
-for (pixely = 0; pixely < inSize.y; pixely++) {
-    for (pixelx = 0; pixelx < inSize.x; pixelx++) {
-        pixel.x = pixelx;
-        pixel.y = pixely;
+    uint2 pixel = make_uint2(0, 0);
+    unsigned int pixely, pixelx;
+    for (pixely = 0; pixely < inSize.y; pixely++) {
+        for (pixelx = 0; pixelx < inSize.x; pixelx++) {
+            pixel.x = pixelx;
+            pixel.y = pixely;
 
-        TrackData & row = output[pixel.x + pixel.y * refSize.x];
+            TrackData & row = output[pixel.x + pixel.y * refSize.x];
 
-        if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
-            row.result = -1;
-            continue;
+            if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
+                row.result = -1;
+                continue;
+            }
+
+            const float3 projectedVertex = Ttrack
+                    * inVertex[pixel.x + pixel.y * inSize.x];
+            const float3 projectedPos = view * projectedVertex;
+            const float2 projPixel = make_float2(
+                    projectedPos.x / projectedPos.z + 0.5f,
+                    projectedPos.y / projectedPos.z + 0.5f);
+            if (projPixel.x < 0 || projPixel.x > refSize.x - 1
+                    || projPixel.y < 0 || projPixel.y > refSize.y - 1) {
+                row.result = -2;
+                continue;
+            }
+
+            const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
+            const float3 referenceNormal = refNormal[refPixel.x
+                    + refPixel.y * refSize.x];
+
+            if (referenceNormal.x == KFUSION_INVALID) {
+                row.result = -3;
+                continue;
+            }
+
+            const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x]
+                    - projectedVertex;
+            const float3 projectedNormal = rotate(Ttrack,
+                    inNormal[pixel.x + pixel.y * inSize.x]);
+
+            if (length(diff) > dist_threshold) {
+                row.result = -4;
+                continue;
+            }
+            if (dot(projectedNormal, referenceNormal) < normal_threshold) {
+                row.result = -5;
+                continue;
+            }
+            row.result = 1;
+            row.error = dot(referenceNormal, diff);
+            ((float3 *) row.J)[0] = referenceNormal;
+            ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
         }
-
-        const float3 projectedVertex = Ttrack
-                * inVertex[pixel.x + pixel.y * inSize.x];
-        const float3 projectedPos = view * projectedVertex;
-        const float2 projPixel = make_float2(
-                projectedPos.x / projectedPos.z + 0.5f,
-                projectedPos.y / projectedPos.z + 0.5f);
-        if (projPixel.x < 0 || projPixel.x > refSize.x - 1
-                || projPixel.y < 0 || projPixel.y > refSize.y - 1) {
-            row.result = -2;
-            continue;
-        }
-
-        const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
-        const float3 referenceNormal = refNormal[refPixel.x
-                + refPixel.y * refSize.x];
-
-        if (referenceNormal.x == KFUSION_INVALID) {
-            row.result = -3;
-            continue;
-        }
-
-        const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x]
-                - projectedVertex;
-        const float3 projectedNormal = rotate(Ttrack,
-                inNormal[pixel.x + pixel.y * inSize.x]);
-
-        if (length(diff) > dist_threshold) {
-            row.result = -4;
-            continue;
-        }
-        if (dot(projectedNormal, referenceNormal) < normal_threshold) {
-            row.result = -5;
-            continue;
-        }
-        row.result = 1;
-        row.error = dot(referenceNormal, diff);
-        ((float3 *) row.J)[0] = referenceNormal;
-        ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
     }
 }
-}
 
-void new_reduce(int blockIndex, float * out, TrackData* J, const uint2 Jsize,
-		const uint2 size) {
+void new_reduce(int blockIndex, float * out, TrackData* J, const uint2 Jsize, const uint2 size) {
 	float *sums = out + blockIndex * 32;
 
 	float * jtj = sums + 7;
@@ -388,21 +385,4 @@ void reduceKernel(float * out, TrackData* J, const uint2 Jsize, const uint2 size
         //std::cerr << "\n";
     }
     
-}
-
-bool updatePoseKernel(Matrix4 & pose, const float * output, float icp_threshold) {
-	bool res = false;
-	
-	// Update the pose regarding the tracking result
-	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output);
-	TooN::Vector<6> x = solve(values[0].slice<1, 27>());
-	TooN::SE3<> delta(x);
-	pose = toMatrix4(delta) * pose;
-
-	// Return validity test result of the tracking
-	if (norm(x) < icp_threshold)
-		res = true;
-
-	
-	return res;
 }
