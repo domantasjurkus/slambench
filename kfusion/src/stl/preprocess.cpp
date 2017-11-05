@@ -1,40 +1,38 @@
-#include <kernels.h>
+#include <commons.h>
 
-void mm2metersKernel(float * out, uint2 outSize, const ushort * in, uint2 inSize) {
-    //TICK();
-    // Check for unsupported conditions
-    if ((inSize.x < outSize.x) || (inSize.y < outSize.y)) {
-        std::cerr << "Invalid ratio." << std::endl;
-        exit(1);
-    }
-    if ((inSize.x % outSize.x != 0) || (inSize.y % outSize.y != 0)) {
-        std::cerr << "Invalid ratio." << std::endl;
-        exit(1);
-    }
-    if ((inSize.x / outSize.x != inSize.y / outSize.y)) {
-        std::cerr << "Invalid ratio." << std::endl;
-        exit(1);
-    }
+void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize) {
+    if ((inSize.x < outSize.x) || (inSize.y < outSize.y)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
+    if ((inSize.x % outSize.x != 0) || (inSize.y % outSize.y != 0)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
+    if ((inSize.x / outSize.x != inSize.y / outSize.y)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
     
     int ratio = inSize.x / outSize.x;
-    unsigned int y;
 
-    // Can i STL this?
-    // map
-    for (y = 0; y < outSize.y; y++) {
-        for (unsigned int x = 0; x < outSize.x; x++) {
-            // This is a map
-            // in size > out size
-            // filter()
-            out[x + outSize.x*y] = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
-        }
+    std::generate(out.begin(), out.end(), [x=0,y=0,in,inSize,outSize,ratio]() mutable {
+        float ret = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
+		x++;
+		if (x == outSize.x) {
+			x = 0;
+			y++;
+		}
+		return ret;
+    });
+}
+
+void mm2metersKernel(float * out, uint2 outSize, const ushort * in, uint2 inSize) {
+    if ((inSize.x < outSize.x) || (inSize.y < outSize.y)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
+    if ((inSize.x % outSize.x != 0) || (inSize.y % outSize.y != 0)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
+    if ((inSize.x / outSize.x != inSize.y / outSize.y)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
+    
+    int ratio = inSize.x / outSize.x;
+
+    for (int y = 0; y < outSize.y; y++) {
+       for (int x = 0; x < outSize.x; x++) {
+           out[x + outSize.x*y] = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
+       }
     }
-
-    //TOCK("mm2metersKernel", outSize.x * outSize.y);
 }
 
 void bilateralFilterKernel(float* out, const float* in, uint2 size, const float * gaussian, float e_d, int r) {
-    //TICK()
     uint y;
     float e_d_squared_2 = e_d * e_d * 2;
 
@@ -73,6 +71,4 @@ void bilateralFilterKernel(float* out, const float* in, uint2 size, const float 
             out[pos] = t / sum;
         }
     }
-    //TOCK("bilateralFilterKernel", size.x * size.y);
 }
-

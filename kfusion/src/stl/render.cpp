@@ -1,5 +1,4 @@
-#include <kernels.h>
-#include <raycast.h>
+#include <kernels_stl.h>
 
 void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize, const float nearPlane, const float farPlane) {
     float rangeScale = 1 / (farPlane - nearPlane);

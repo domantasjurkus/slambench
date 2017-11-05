@@ -1,5 +1,4 @@
-#include <kernels.h>
-#include <raycast.h>
+#include <kernels_stl.h>
 
 // Voxel grid (Volume) to point cloud
 // Takes volume, produces point cloud

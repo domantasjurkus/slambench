@@ -1,4 +1,4 @@
-#include <kernels.h>
+#include <kernels_stl.h>
 
 void halfSampleRobustImageKernel(float* out, const float* in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x / 2, inSize.y / 2);

@@ -1,4 +1,4 @@
-#include <kernels.h>
+#include <kernels_stl.h>
 
 // input once
 float * gaussian;
@@ -11,18 +11,25 @@ float3 * normal;
 // intra-frame
 TrackData * trackingResult;
 float* reductionoutput;
-float ** ScaledDepth;
-float * floatDepth;
 Matrix4 oldPose;
 Matrix4 raycastPose;
 float3 ** inputVertex;
 float3 ** inputNormal;
+
+// Change from arrays to vectors
+float * floatDepth;
+float ** ScaledDepth;
+std::vector<float> floatDepthVector;
+std::vector<float*> ScaledDepthVector;
 	
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
 	reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
 
-	ScaledDepth = (float**)  calloc(sizeof(float*) * iterations.size(), 1);
+	// Added by Dom
+	ScaledDepthVector.resize(sizeof(float*) * iterations.size());
+
+	ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
 	inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
 	inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
 
@@ -33,6 +40,8 @@ void Kfusion::languageSpecificConstructor() {
 	}
 
 	floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
+	floatDepthVector.resize(computationSize.x * computationSize.y);
+
 	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 	trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
@@ -119,7 +128,8 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output, uint
 }
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
-	mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
+	//mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
+	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
 	bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize, gaussian, e_delta, radius);
 	return true;
 }
@@ -134,7 +144,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
         // Produce pyramid
 		halfSampleRobustImageKernel(ScaledDepth[i], ScaledDepth[i - 1],
 				make_uint2(computationSize.x / (int) pow(2, i - 1),
-						computationSize.y / (int) pow(2, i - 1)), e_delta * 3, 1);
+						   computationSize.y / (int) pow(2, i - 1)), e_delta * 3, 1);
 	}
 
 	// prepare the 3D information from the input depth maps
@@ -198,8 +208,8 @@ bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame)
 	bool doIntegrate = checkPoseKernel(pose, oldPose, reductionoutput, computationSize, track_threshold);
 
 	if ((doIntegrate && ((frame % integration_rate) == 0)) || (frame <= 3)) {
-		integrateKernel(volume, floatDepth, computationSize, inverse(pose),
-				getCameraMatrix(k), mu, maxweight);
+		// Commented out due to change from floatDepth to floatDepthVector
+		integrateKernel(volume, floatDepth, computationSize, inverse(pose), getCameraMatrix(k), mu, maxweight);
 		doIntegrate = true;
 	} else {
 		doIntegrate = false;

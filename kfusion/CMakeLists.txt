@@ -42,13 +42,13 @@ target_link_libraries(${appname}-cpp   ${common_libraries})
 add_version(${appname} cpp "" "")
 
  # ----------------- STL VERSION ----------------- 
- set(STL_FILES  src/stl/kernels.cpp
-                src/stl/preprocess.cpp
+ set(STL_FILES  src/stl/preprocess.cpp
                 src/stl/track.cpp
                 src/stl/integrate.cpp
                 src/stl/raycast.cpp
                 src/stl/raycasting.cpp
-                src/stl/render.cpp)
+                src/stl/render.cpp
+                src/stl/kernels.cpp)
  add_library(${appname}-stl ${STL_FILES} )
  target_link_libraries(${appname}-stl   ${common_libraries})	
  add_version(${appname} stl "" "")
@@ -61,8 +61,8 @@ SET_TARGET_PROPERTIES(${appname}-openmp PROPERTIES COMPILE_FLAGS "-fopenmp")
 add_version(${appname} openmp "-fopenmp" "-fopenmp")
 
 
- #  ----------------- OCL VERSION ----------------- 
- 
+ #  ----------------- OCL VERSION -----------------  
+
 if (OPENCL_FOUND) 
    include_directories(${OPENCL_INCLUDE_DIRS})
     add_library(${appname}-opencl  src/opencl/kernels.cpp src/opencl/common_opencl.cpp)
@@ -71,9 +71,10 @@ if (OPENCL_FOUND)
 endif(OPENCL_FOUND)
 
 
- #  ----------------- CUDA VERSION ----------------- 
-if (CUDA_FOUND) 
 
+ #  ----------------- CUDA VERSION ----------------- 
+
+if (CUDA_FOUND) 
 
 set(kfusion_cuda_srcs
 	src/cuda/kernels.cu
