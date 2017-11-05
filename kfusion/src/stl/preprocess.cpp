@@ -35,7 +35,7 @@ void mm2metersKernel(float * out, uint2 outSize, const ushort * in, uint2 inSize
 }
 
 // Todo: STL
-void bilateralFilterKernel(float* out, const std::vector<float> in, uint2 size, const float * gaussian, float e_d, int r) {
+void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 size, const float * gaussian, float e_d, int r) {
     uint y;
     float e_d_squared_2 = e_d * e_d * 2;
 
@@ -63,9 +63,7 @@ void bilateralFilterKernel(float* out, const std::vector<float> in, uint2 size, 
                     const float curPix = in[curPos.x + curPos.y * size.x];
                     if (curPix > 0) {
                         const float mod = sq(curPix - center);
-                        const float factor = gaussian[i+r]
-                            * gaussian[j+r]
-                            * expf(-mod / e_d_squared_2);
+                        const float factor = gaussian[i+r]*gaussian[j+r]*expf(-mod / e_d_squared_2);
                         t += factor * curPix;
                         sum += factor;
                     }
@@ -75,7 +73,6 @@ void bilateralFilterKernel(float* out, const std::vector<float> in, uint2 size, 
         }
     }
 }
-
 
 // Original
 void bilateralFilterKernel(float* out, const float* in, uint2 size, const float * gaussian, float e_d, int r) {

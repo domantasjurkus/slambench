@@ -20,14 +20,14 @@ float3 ** inputNormal;
 float * floatDepth;
 float ** ScaledDepth;
 std::vector<float> floatDepthVector;
-//std::vector<float*> ScaledDepthVector;
+std::vector<std::vector<float>> ScaledDepthVector;
 	
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
 	reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
 
 	// Added by Dom
-	//ScaledDepthVector.resize(sizeof(float*) * iterations.size());
+	ScaledDepthVector.resize(sizeof(float*) * iterations.size());
 
 	ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
 	inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
@@ -37,10 +37,14 @@ void Kfusion::languageSpecificConstructor() {
 		ScaledDepth[i] = (float*)  calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 		inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 		inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+
+		// Added by Dom
+		ScaledDepthVector[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 	}
 
-	floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
+	// Added by Dom
 	floatDepthVector.resize(computationSize.x * computationSize.y);
+	floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
 
 	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
@@ -131,7 +135,7 @@ bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
 	//mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
 	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
 	//bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize, gaussian, e_delta, radius);
-	bilateralFilterKernel(ScaledDepth[0], floatDepthVector, computationSize, gaussian, e_delta, radius);
+	bilateralFilterKernel(ScaledDepthVector[0], floatDepthVector, computationSize, gaussian, e_delta, radius);
 	return true;
 }
 
