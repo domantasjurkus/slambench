@@ -5,9 +5,12 @@
 
  This code is licensed under the MIT License.
 
- */
+*/
+// TODO: make a common header for CPP and STL
+#include <kernels_stl.h>
 
-#include <kernels.h>
+#include <cstdlib>
+#include <commons.h>
 #include <interface.h>
 #include <stdint.h>
 #include <vector>
@@ -16,6 +19,7 @@
 #include <cstring>
 #include <time.h>
 #include <csignal>
+#include <experimental/algorithm>
 
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -72,12 +76,9 @@ int main(int argc, char ** argv) {
 	DepthReader * reader;
 
 	if (is_file(config.input_file)) {
-		reader = new RawDepthReader(config.input_file, config.fps,
-				config.blocking_read);
-
+		reader = new RawDepthReader(config.input_file, config.fps, config.blocking_read);
 	} else {
-		reader = new SceneDepthReader(config.input_file, config.fps,
-				config.blocking_read);
+		reader = new SceneDepthReader(config.input_file, config.fps, config.blocking_read);
 	}
 
 	std::cout.precision(10);
@@ -85,8 +86,7 @@ int main(int argc, char ** argv) {
 
 	float3 init_pose = config.initial_pos_factor * config.volume_size;
 	const uint2 inputSize = reader->getinputSize();
-	std::cerr << "input Size is = " << inputSize.x << "," << inputSize.y
-			<< std::endl;
+	std::cerr << "input Size is = " << inputSize.x << "," << inputSize.y << std::endl;
 
 	//  =========  BASIC PARAMETERS  (input size / computation size )  =========
 
@@ -100,14 +100,10 @@ int main(int argc, char ** argv) {
 	//  =========  BASIC BUFFERS  (input / output )  =========
 
 	// Construction Scene reader and input buffer
-	uint16_t* inputDepth = (uint16_t*) malloc(
-			sizeof(uint16_t) * inputSize.x * inputSize.y);
-	uchar4* depthRender = (uchar4*) malloc(
-			sizeof(uchar4) * computationSize.x * computationSize.y);
-	uchar4* trackRender = (uchar4*) malloc(
-			sizeof(uchar4) * computationSize.x * computationSize.y);
-	uchar4* volumeRender = (uchar4*) malloc(
-			sizeof(uchar4) * computationSize.x * computationSize.y);
+	uint16_t* inputDepth = (uint16_t*) malloc(sizeof(uint16_t) * inputSize.x * inputSize.y);
+	uchar4* depthRender = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
+	uchar4* trackRender = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
+	uchar4* volumeRender = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
 
 	uint frame = 0;
 
@@ -129,32 +125,23 @@ int main(int argc, char ** argv) {
 		float xt = pose.data[0].w - init_pose.x;
 		float yt = pose.data[1].w - init_pose.y;
 		float zt = pose.data[2].w - init_pose.z;
-
 		timings[1] = tock();
 
 		kfusion.preprocessing(inputDepth, inputSize);
-
 		timings[2] = tock();
 
-		bool tracked = kfusion.tracking(camera, config.icp_threshold,
-				config.tracking_rate, frame);
-
+		bool tracked = kfusion.tracking(camera, config.icp_threshold, config.tracking_rate, frame);
 		timings[3] = tock();
 
-		bool integrated = kfusion.integration(camera, config.integration_rate,
-				config.mu, frame);
-
+		bool integrated = kfusion.integration(camera, config.integration_rate, config.mu, frame);
 		timings[4] = tock();
 
 		bool raycast = kfusion.raycasting(camera, config.mu, frame);
-
 		timings[5] = tock();
 
 		kfusion.renderDepth(depthRender, computationSize);
 		kfusion.renderTrack(trackRender, computationSize);
-		kfusion.renderVolume(volumeRender, computationSize, frame,
-				config.rendering_rate, camera, 0.75 * config.mu);
-
+		kfusion.renderVolume(volumeRender, computationSize, frame, config.rendering_rate, camera, 0.75 * config.mu);
 		timings[6] = tock();
 
 		*logstream << frame << "\t" << timings[1] - timings[0] << "\t" //  acquisition
