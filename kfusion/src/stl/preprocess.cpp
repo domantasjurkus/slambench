@@ -28,10 +28,11 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
     uint y;
     float e_d_squared_2 = e_d * e_d * 2;
 
-    // STL the for loop?
-    // For each output value:
-    for (y = 0; y < size.y; y++) {
-        for (uint x = 0; x < size.x; x++) {
+    // Two options:
+    // 1. generate (iota) vectors for y and x values, then foreach loop
+    // 2. generate coordinate vector [(y,x),(y,x),(y,x)], then single foreach (paralelizable)
+    for (y=0; y<size.y; y++) {
+        for (uint x=0; x<size.x; x++) {
             uint pos = x + y*size.x;
             if (in[pos] == 0) {
                 out[pos] = 0;
@@ -45,6 +46,10 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
 
             // r will be 2 by default
             // reduction to t and sum
+
+            // Use std::accummulate() to reduce to t
+            // Use std:accummulate() again to reduce to sum?
+
             for (int i = -r; i <= r; i++) {
                 for (int j = -r; j <= r; j++) {
                     uint2 curPos = make_uint2(clamp(x+i, 0u, size.x-1),

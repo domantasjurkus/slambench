@@ -28,38 +28,39 @@ TrackData * trackingResult;
 float* reductionoutput;
 Matrix4 oldPose;
 Matrix4 raycastPose;
-float3 ** inputVertex;
-float3 ** inputNormal;
 
-// Change from arrays to vectors
 //float * floatDepth;
 //float ** ScaledDepth;
 std::vector<float> floatDepthVector;
 std::vector<std::vector<float>> scaledDepthVector;
-	
+
+//float3 ** inputVertex;
+//float3 ** inputNormal;
+std::vector<std::vector<float3>> inputVertex;
+std::vector<std::vector<float3>> inputNormal;
+
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
 	reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
 
-	// Added by Dom
-	scaledDepthVector.resize(sizeof(float*) * iterations.size());
-
 	//ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
-	inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
-	inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
+	//inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
+	//inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
+	scaledDepthVector.resize(sizeof(float *) * iterations.size());
+	inputVertex.resize(sizeof(float3 *) * iterations.size());
+	inputNormal.resize(sizeof(float3 *) * iterations.size());
 
 	for (unsigned int i=0; i<iterations.size(); ++i) {
 		//ScaledDepth[i] = (float*) calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-		inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-		inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-
-		// Added by Dom
+		//inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+		//inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 		scaledDepthVector[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
+		inputVertex[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
+		inputNormal[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 	}
 
-	// Added by Dom
-	floatDepthVector.resize(computationSize.x * computationSize.y);
 	//floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
+	floatDepthVector.resize(computationSize.x * computationSize.y);
 
 	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
@@ -69,8 +70,8 @@ void Kfusion::languageSpecificConstructor() {
 	size_t gaussianS = radius * 2 + 1;
 	gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
 	int x;
-	for (unsigned int i = 0; i < gaussianS; i++) {
-		x = i - 2;
+	for (auto i=0; i<gaussianS; i++) {
+		x = i-2;
 		gaussian[i] = expf(-(x * x) / (2 * delta * delta));
 	}
 	// ********* END : Generate the gaussian *************
@@ -83,20 +84,18 @@ Kfusion::~Kfusion() {
 	//free(floatDepth);
 	free(trackingResult);
 	free(reductionoutput);
-	for (unsigned int i=0; i<iterations.size(); ++i) {
+	/*for (unsigned int i=0; i<iterations.size(); ++i) {
 		//free(ScaledDepth[i]);
-		free(inputVertex[i]);
-		free(inputNormal[i]);
-	}
+		//free(inputVertex[i]);
+		//free(inputNormal[i]);
+	}*/
 	//free(ScaledDepth);
-	free(inputVertex);
-	free(inputNormal);
+	//free(inputVertex);
+	//free(inputNormal);
 
 	free(vertex);
 	free(normal);
 	free(gaussian);
-
-	// Vectors?
 
 	volume.release();
 }
@@ -149,9 +148,7 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output, uint
 }
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
-	//mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
 	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
-	//bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize, gaussian, e_delta, radius);
 	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, computationSize, gaussian, e_delta, radius);
 	return true;
 }
@@ -170,49 +167,35 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 	// prepare the 3D information from the input depth maps
 	uint2 localimagesize = computationSize;
 
-	//printf("arbitrary scaledDepth: %f\n", scaledDepthVector[0][123]);
-
 	for (unsigned int i=0; i<iterations.size(); ++i) {
 		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
-		depth2vertexKernel(inputVertex[i], scaledDepthVector[i], localimagesize, invK);
-		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
+		depth2vertexKernel(inputVertex[i].data(), scaledDepthVector[i], localimagesize, invK);
+		vertex2normalKernel(inputNormal[i].data(), inputVertex[i].data(), localimagesize);
 		localimagesize = make_uint2(localimagesize.x/2, localimagesize.y/2);
 	}
 
 	oldPose = pose;
 	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
 
-	// Debugging - these are as expected
-	/*for (int h=0; h<10; h++) {
-		printf("i, n: %f %f\n", inputVertex[0][h].y, inputNormal[0][h].y);
-	}*/
-
-    // ICP
-	// Start from smallest image, then bigger, then biggest
-	//printf("Iterations: %d %d %d\n", iterations[0], iterations[1], iterations[2]);
 	for (int level=iterations.size()-1; level>=0; --level) {
 		uint2 localimagesize = make_uint2(computationSize.x / (int) pow(2, level),
 										  computationSize.y / (int) pow(2, level));
 		// For each pyramid level
-		//printf("iterations[%d] = %d, %f\n", level, iterations[level], icp_threshold);
 		for (int i=0; i<iterations[level]; ++i) {
 
 			// both point clouds
 			// compute the error
 			double a = tock();
-			//printf("%f %f\n", inputVertex[0][i], inputNormal[0][i]);
-			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
+			trackKernel(trackingResult, inputVertex[level].data(), inputNormal[level].data(),
 						localimagesize, vertex, normal, computationSize, pose,
 						projectReference, dist_threshold, normal_threshold);
 			double b = tock();
-			//printf("tracking step: %f\n", b-a);
 					
 			// sum of the errors
 			reduceKernel(reductionoutput, trackingResult, computationSize, localimagesize);
 			
 			// correct for the errors
 			if (updatePoseKernel(pose, reductionoutput, icp_threshold)) {
-				//printf("breaking level %d at i=%d\n", level, i);
 				break;
 			}
 		}
