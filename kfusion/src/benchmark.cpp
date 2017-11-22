@@ -110,13 +110,16 @@ int main(int argc, char ** argv) {
 	Kfusion kfusion(computationSize, config.volume_resolution,
 			config.volume_size, init_pose, config.pyramid);
 
-	double timings[7];
+	std::vector<double> timings(6);
 	timings[0] = tock();
 
 	*logstream
 			<< "frame\tacquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal    \tX          \tY          \tZ         \ttracked   \tintegrated"
 			<< std::endl;
 	logstream->setf(std::ios::fixed, std::ios::floatfield);
+
+	std::vector<double> diff(7, 0);
+	std::vector<double> total_stage_times(7, 0);
 
 	while (reader->readNextDepthFrame(inputDepth)) {
 
@@ -144,26 +147,44 @@ int main(int argc, char ** argv) {
 		kfusion.renderVolume(volumeRender, computationSize, frame, config.rendering_rate, camera, 0.75 * config.mu);
 		timings[6] = tock();
 
-		*logstream << frame << "\t" << timings[1] - timings[0] << "\t" //  acquisition
-				<< timings[2] - timings[1] << "\t"     //  preprocessing
-				<< timings[3] - timings[2] << "\t"     //  tracking
-				<< timings[4] - timings[3] << "\t"     //  integration
-				<< timings[5] - timings[4] << "\t"     //  raycasting
-				<< timings[6] - timings[5] << "\t"     //  rendering
-				<< timings[5] - timings[1] << "\t"     //  computation
-				<< timings[6] - timings[0] << "\t"     //  total
+		for (int i=1; i<7; i++) {
+			diff[i] = timings[i] - timings[i-1];
+		}
+
+		*logstream << frame << "\t"
+				<< diff[1] << "\t"	//  acquisition
+				<< diff[2] << "\t"	//  preprocessing
+				<< diff[3] << "\t"	//  tracking
+				<< diff[4] << "\t"	//  integration
+				<< diff[5] << "\t"	//  raycasting
+				<< diff[6] << "\t"	//  rendering
+				<< timings[5] - timings[1] << "\t"	//  computation
+				<< timings[6] - timings[0] << "\t"	//  total
 				<< xt << "\t" << yt << "\t" << zt << "\t"     //  X,Y,Z
 				<< tracked << "        \t" << integrated // tracked and integrated flags
 				<< std::endl;
-
 		frame++;
+
+		std::transform(total_stage_times.begin(),total_stage_times.end(),
+			diff.begin(), total_stage_times.begin(), std::plus<double>());
 
 		timings[0] = tock();
 	}
+	
+	*logstream << "Total stage times\n"
+		<< std::endl
+		<< "frame\tacquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal    \tX          \tY          \tZ         \ttracked   \tintegrated"
+		<< std::endl;
+	std::cout << "\t";
+	for (int i=1; i<total_stage_times.size()+1; i++) {
+		std::cout << total_stage_times[i] << "\t";
+	}
+	std::cout << std::endl;
+
 	// ==========     DUMP VOLUME      =========
 
 	if (config.dump_volume_file != "") {
-	  kfusion.dumpVolume(config.dump_volume_file.c_str());
+		kfusion.dumpVolume(config.dump_volume_file.c_str());
 	}
 
 	//  =========  FREE BASIC BUFFERS  =========
