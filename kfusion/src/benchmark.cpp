@@ -7,11 +7,12 @@
 
 */
 // TODO: make a common header for CPP and STL
-#include <kernels_stl.h>
 
 #include <cstdlib>
 #include <commons.h>
 #include <interface.h>
+#include <kfusion.h>
+
 #include <stdint.h>
 #include <vector>
 #include <sstream>

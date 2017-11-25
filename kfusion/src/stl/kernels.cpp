@@ -1,4 +1,5 @@
 #include <kernels_stl.h>
+#include <kfusion.h>
 
 inline double tock() {
 	synchroniseDevices();
