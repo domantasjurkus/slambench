@@ -1,5 +1,5 @@
-#ifndef _KERNELS_
-#define _KERNELS_
+#ifndef _KERNELS_STL_
+#define _KERNELS_STL_
 
 #include <cstdlib>
 #include <commons.h>
@@ -11,18 +11,19 @@ void initVolumeKernel(Volume volume);
 void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 inSize, const float * gaussian, float e_d, int r);
 //void bilateralFilterKernel(float* out, const float* in, uint2 inSize, const float * gaussian, float e_d, int r);
 
-void depth2vertexKernel(float3* vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK);
+void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK);
 //void depth2vertexKernel(float3* vertex, const float * depth, uint2 imageSize, const Matrix4 invK);
 
 void reduceKernel(float * out, TrackData* J, const uint2 Jsize, const uint2 size);
 
-void trackKernel(TrackData* output, const float3* inVertex,
-		const float3* inNormal, uint2 inSize, const float3* refVertex,
+void trackKernel(TrackData* output, const std::vector<float3> inVertex,
+		const std::vector<float3> inNormal, uint2 inSize, const float3* refVertex,
 		const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
 		const Matrix4 view, const float dist_threshold,
 		const float normal_threshold);
 
-void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize);
+//void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize);
+void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize);
 
 void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize);
 //void mm2metersKernel(float * out, uint2 outSize, const ushort * in, uint2 inSize);

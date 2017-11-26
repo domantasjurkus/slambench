@@ -14,7 +14,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             float sum = 0.0f;
             float t = 0.0f;
             const float center = in[centerPixel.x + centerPixel.y * inSize.x];
-            // Reduction
+            // Stencil
             for (int i=-r+1; i<=r; ++i) {
                 for (int j=-r+1; j<=r; ++j) {
                     uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+j, centerPixel.y+i), make_int2(0),
@@ -32,7 +32,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
 }
 
 // Original
-void halfSampleRobustImageKernel(float *out, const float *in, uint2 inSize, const float e_d, const int r) {
+/*void halfSampleRobustImageKernel(float *out, const float *in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
     unsigned int y;
 
@@ -60,10 +60,10 @@ void halfSampleRobustImageKernel(float *out, const float *in, uint2 inSize, cons
             out[pixel.x + pixel.y * outSize.x] = t/sum;
         }
     }
-}
+}*/
 
-// STL
-void depth2vertexKernel(float3* vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
+// STL TODO
+void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
     // todo: conditional map to vertex
     for (unsigned int y=0; y<imageSize.y; y++) {
         for (unsigned int x=0; x<imageSize.x; x++) {
@@ -79,7 +79,7 @@ void depth2vertexKernel(float3* vertex, const std::vector<float> depth, uint2 im
 }
 
 // Original
-void depth2vertexKernel(float3* vertex, const float * depth, uint2 imageSize, const Matrix4 invK) {
+/*void depth2vertexKernel(float3* vertex, const float * depth, uint2 imageSize, const Matrix4 invK) {
     for (unsigned int y=0; y<imageSize.y; y++) {
         for (unsigned int x=0; x<imageSize.x; x++) {
             if (depth[x + y*imageSize.x] > 0) {
@@ -91,9 +91,9 @@ void depth2vertexKernel(float3* vertex, const float * depth, uint2 imageSize, co
             }
         }
     }
-}
+}*/
 
-void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {
+void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
     // Map to out
 	for (unsigned int y = 0; y < imageSize.y; y++) {
 		for (unsigned int x = 0; x < imageSize.x; x++) {
@@ -116,12 +116,11 @@ void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {
 			out[x + y * imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
 		}
 	}
-	
 }
 
-// TrackData includes the errors (for far I am to the pixel in front of me)
-/*void trackKernel(TrackData* output, const float3* inVertex,
-        const float3* inNormal, uint2 inSize, const float3* refVertex,
+// TrackData includes the errors (how far I am to the pixel in front of me)
+void trackKernel(TrackData* output, const std::vector<float3> inVertex,
+        const std::vector<float3> inNormal, uint2 inSize, const float3* refVertex,
         const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
         const Matrix4 view, const float dist_threshold,
         const float normal_threshold) {
@@ -175,72 +174,6 @@ void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize) {
             ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
         }
     }
-}*/
-
-void trackKernel(TrackData* output, const float3* inVertex,
-		const float3* inNormal, uint2 inSize, const float3* refVertex,
-		const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
-		const Matrix4 view, const float dist_threshold,
-		const float normal_threshold) {
-	//TICK();
-	uint2 pixel = make_uint2(0, 0);
-    unsigned int pixely, pixelx;
-    // consider zipping (std::transfor twice)
-#pragma omp parallel for \
-	    shared(output), private(pixel,pixelx,pixely)
-	for (pixely = 0; pixely < inSize.y; pixely++) {
-		for (pixelx = 0; pixelx < inSize.x; pixelx++) {
-			pixel.x = pixelx;
-			pixel.y = pixely;
-
-			TrackData & row = output[pixel.x + pixel.y * refSize.x];
-
-			if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
-				row.result = -1;
-				continue;
-			}
-
-			const float3 projectedVertex = Ttrack
-					* inVertex[pixel.x + pixel.y * inSize.x];
-			const float3 projectedPos = view * projectedVertex;
-			const float2 projPixel = make_float2(
-					projectedPos.x / projectedPos.z + 0.5f,
-					projectedPos.y / projectedPos.z + 0.5f);
-			if (projPixel.x < 0 || projPixel.x > refSize.x - 1
-					|| projPixel.y < 0 || projPixel.y > refSize.y - 1) {
-				row.result = -2;
-				continue;
-			}
-
-			const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
-			const float3 referenceNormal = refNormal[refPixel.x
-					+ refPixel.y * refSize.x];
-
-			if (referenceNormal.x == KFUSION_INVALID) {
-				row.result = -3;
-				continue;
-			}
-
-			const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x]
-					- projectedVertex;
-			const float3 projectedNormal = rotate(Ttrack,
-					inNormal[pixel.x + pixel.y * inSize.x]);
-
-			if (length(diff) > dist_threshold) {
-				row.result = -4;
-				continue;
-			}
-			if (dot(projectedNormal, referenceNormal) < normal_threshold) {
-				row.result = -5;
-				continue;
-			}
-			row.result = 1;
-			row.error = dot(referenceNormal, diff);
-			((float3 *) row.J)[0] = referenceNormal;
-			((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
-		}
-	}
-	//TOCK("trackKernel", inSize.x * inSize.y);
 }
 
 void new_reduce(int blockIndex, float * out, TrackData* J, const uint2 Jsize, const uint2 size) {

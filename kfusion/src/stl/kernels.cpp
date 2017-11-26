@@ -47,11 +47,12 @@ void Kfusion::languageSpecificConstructor() {
 	//ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
 	//inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
 	//inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
-	scaledDepthVector.resize(sizeof(float *) * iterations.size());
-	inputVertex.resize(sizeof(float3 *) * iterations.size());
-	inputNormal.resize(sizeof(float3 *) * iterations.size());
+	scaledDepthVector.resize(iterations.size());
 
-	for (unsigned int i=0; i<iterations.size(); ++i) {
+	inputVertex.resize(iterations.size());
+	inputNormal.resize(iterations.size());
+
+	for (auto i=0; i<iterations.size(); ++i) {
 		//ScaledDepth[i] = (float*) calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 		//inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 		//inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
@@ -112,7 +113,6 @@ void initVolumeKernel(Volume volume) {
 	for (unsigned int x = 0; x < volume.size.x; x++) {
 		for (unsigned int y = 0; y < volume.size.y; y++) {
 			for (unsigned int z = 0; z < volume.size.z; z++) {
-				//std::cout <<  x << " " << y << " " << z <<"\n";
 				volume.setints(x, y, z, make_float2(1.0f, 0.0f));
 			}
         }
@@ -170,8 +170,8 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 
 	for (unsigned int i=0; i<iterations.size(); ++i) {
 		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
-		depth2vertexKernel(inputVertex[i].data(), scaledDepthVector[i], localimagesize, invK);
-		vertex2normalKernel(inputNormal[i].data(), inputVertex[i].data(), localimagesize);
+		depth2vertexKernel(inputVertex[i], scaledDepthVector[i], localimagesize, invK);
+		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
 		localimagesize = make_uint2(localimagesize.x/2, localimagesize.y/2);
 	}
 
@@ -187,7 +187,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 			// both point clouds
 			// compute the error
 			double a = tock();
-			trackKernel(trackingResult, inputVertex[level].data(), inputNormal[level].data(),
+			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
 						localimagesize, vertex, normal, computationSize, pose,
 						projectReference, dist_threshold, normal_threshold);
 			double b = tock();

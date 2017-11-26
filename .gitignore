@@ -21,6 +21,7 @@ livingRoom*.gt.freiburg
 #editor backups
 *~
 
+.vscode
 TooN/
 OpenNI2dev/
 libfreenect/
