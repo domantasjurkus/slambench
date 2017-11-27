@@ -1,0 +1,1 @@
+./run_cpp.sh && ./run_stl.sh && python compare.py
