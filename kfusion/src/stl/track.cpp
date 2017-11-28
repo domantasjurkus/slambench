@@ -176,13 +176,13 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
     }
 }
 
-void sum_rows(auto &sums, TrackData row) {
+auto reduce_single_row = [](auto &sums, TrackData row) {
     if (row.result<1) {
         // accesses sums[28..31]
         sums[29] += row.result == -4 ? 1 : 0; // (sums+28)[1]
         sums[30] += row.result == -5 ? 1 : 0; // (sums+28)[2]
         sums[31] += row.result > -4 ? 1 : 0;  // (sums+28)[3]
-        return;
+        return sums;
     }
     // Error part
     sums[0] += row.error * row.error;
@@ -223,41 +223,37 @@ void sum_rows(auto &sums, TrackData row) {
 
     sums[27] += row.J[5] * row.J[5];
     sums[28] += 1; // extra info here (sums+28)[0]
-}
+    return sums;
+};
 
-void new_reduce(int blockIndex, std::vector<float> &out, std::vector<TrackData> J, const uint2 Jsize, const uint2 size) {
-    //float *sums = out + blockIndex * 32;
-    auto sums = out.begin() + blockIndex*32;
-	for (uint i=0; i<32; ++i) {
-        sums[i] = 0;
-    }
-
-    //auto row_begin_iterator = J.begin();
-    //auto row_end_iterator = J.begin() + size.x;
-    
+void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const uint2 Jsize, const uint2 out_size) {
     //std::vector<int> sum_indices(32);
     //std::iota(sum_indices.begin(), sum_indices.end(), 0);
     /*std::for_each(sum_indices.begin(), sum_indices.end(), [](int i) {
     });*/
 
-    // Pairs of (x,y) coordinates could look like (0,0), (1,0), ..., (160,0), (1,8), (1,8), ...
-    for (uint y=blockIndex; y<size.y; y+=8) {
-		for (uint x=0; x<size.x; x++) {
-			const TrackData row = J[x + y*Jsize.x];
-			sum_rows(sums, row);
-		}
-	}
+    // Loop through each block in the J vector
+    for (uint blockIndex=0; blockIndex<8; blockIndex++)  {
+
+        // Prepare an iterator pointing to the output, clearing the next 32 elements
+        auto output_sums = out.begin() + blockIndex*32;
+        for (uint i=0; i<32; ++i) {
+            output_sums[i] = 0;
+        }
+
+        for (uint y=blockIndex; y<out_size.y; y+=8) {
+            auto input_iterator_begin = trackData.begin() + y*Jsize.x;
+            auto input_iterator_end = trackData.begin() + y*Jsize.x + out_size.x;
+            std::accumulate(input_iterator_begin, input_iterator_end, output_sums, reduce_single_row);
+    	}
+    }
 }
 
-void reduceKernel(std::vector<float> &out, std::vector<TrackData> J, const uint2 Jsize, const uint2 size) {
-    int blockIndex;
-    
-    for (blockIndex=0; blockIndex<8; blockIndex++) {
-        new_reduce(blockIndex, out, J, Jsize, size);
-    }
+void reduceKernel(std::vector<float> &out, std::vector<TrackData> trackData, const uint2 Jsize, const uint2 out_size) {
+    new_reduce(out, trackData, Jsize, out_size);
 
     TooN::Matrix<8, 32, float, TooN::Reference::RowMajor> values(out.data());
-    for (int j = 1; j < 8; ++j) {
+    for (int j=1; j<8; ++j) {
         values[0] += values[j];
     }
 }
