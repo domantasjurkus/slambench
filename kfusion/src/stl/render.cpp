@@ -26,7 +26,7 @@ void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize, const float 
     }
 }
 
-void renderTrackKernel(uchar4* out, const TrackData* data, uint2 outSize) {
+void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 outSize) {
 
     unsigned int y;
 

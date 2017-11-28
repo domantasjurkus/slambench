@@ -6,7 +6,6 @@
  This code is licensed under the MIT License.
 
 */
-// TODO: make a common header for CPP and STL
 
 #include <cstdlib>
 #include <commons.h>
@@ -41,14 +40,11 @@ inline double tock() {
 		clock_gettime(CLOCK_MONOTONIC, &clockData);
 #endif
 		return (double) clockData.tv_sec + clockData.tv_nsec / 1000000000.0;
-}	
-
-
+}
 
 /***
  * This program loop over a scene recording
  */
-
 int main(int argc, char ** argv) {
 
 	Configuration config(argc, argv);
@@ -114,9 +110,9 @@ int main(int argc, char ** argv) {
 	std::vector<double> timings(6);
 	timings[0] = tock();
 
-	*logstream
+	/**logstream
 			<< "frame\tacquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal    \tX          \tY          \tZ         \ttracked   \tintegrated"
-			<< std::endl;
+			<< std::endl;*/
 	logstream->setf(std::ios::fixed, std::ios::floatfield);
 
 	std::vector<double> diff(8, 0);
@@ -151,8 +147,8 @@ int main(int argc, char ** argv) {
 		for (int i=0; i<=5; i++) {
 			diff[i] = timings[i+1] - timings[i];
 		}
-		diff[6] = timings[5] - timings[1];
-		diff[7] = timings[6] - timings[0];
+		diff[6] = timings[5] - timings[1]; // Computation: from preprocessing to rendering
+		diff[7] = timings[6] - timings[0]; // Total time
 
 		*logstream << frame << "\t"
 				<< diff[0] << "\t"	//  acquisition
@@ -173,25 +169,25 @@ int main(int argc, char ** argv) {
 
 		timings[0] = tock();
 	}
+
+	// Save metrics to output file
 	
-	*logstream << "Total stage times\n"
+	/**logstream << "Total stage times\n"
 		<< std::endl
 		<< "frame\tacquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal    \tX          \tY          \tZ         \ttracked   \tintegrated"
 		<< std::endl;
-	std::cout << "\t";
+	std::cout << "\t";*/
 	for (int i=0; i<total_stage_times.size(); i++) {
-		std::cout << total_stage_times[i] << "\t";
+		*logstream << total_stage_times[i] << " ";
 	}
-	std::cout << std::endl;
+	//std::cout << std::endl;
 
 	// ==========     DUMP VOLUME      =========
-
 	if (config.dump_volume_file != "") {
 		kfusion.dumpVolume(config.dump_volume_file.c_str());
 	}
 
 	//  =========  FREE BASIC BUFFERS  =========
-
 	free(inputDepth);
 	free(depthRender);
 	free(trackRender);
@@ -199,4 +195,3 @@ int main(int argc, char ** argv) {
 	return 0;
 
 }
-

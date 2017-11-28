@@ -25,10 +25,12 @@ float3 * vertex;
 float3 * normal;
 
 // intra-frame
-TrackData * trackingResult;
-float* reductionoutput;
+std::vector<TrackData> trackingResult;
+//TrackData * trackingResult;
 Matrix4 oldPose;
 Matrix4 raycastPose;
+//float* reductionoutput;
+std::vector<float> reductionoutput;
 
 //float * floatDepth;
 //float ** ScaledDepth;
@@ -42,7 +44,8 @@ std::vector<std::vector<float3>> inputNormal;
 
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
-	reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
+	//reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
+	reductionoutput.resize(8*32);
 
 	//ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
 	//inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
@@ -66,7 +69,8 @@ void Kfusion::languageSpecificConstructor() {
 
 	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
-	trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
+	//trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
+	trackingResult.resize(computationSize.x * computationSize.y);
 
 	// ********* BEGIN : Generate the gaussian *************
 	size_t gaussianS = radius * 2 + 1;
@@ -84,8 +88,8 @@ void Kfusion::languageSpecificConstructor() {
 
 Kfusion::~Kfusion() {
 	//free(floatDepth);
-	free(trackingResult);
-	free(reductionoutput);
+	//free(trackingResult);
+	//free(reductionoutput);
 	/*for (unsigned int i=0; i<iterations.size(); ++i) {
 		//free(ScaledDepth[i]);
 		//free(inputVertex[i]);
@@ -119,11 +123,11 @@ void initVolumeKernel(Volume volume) {
     }
 }
 
-bool updatePoseKernel(Matrix4 & pose, const float * output, float icp_threshold) {
+bool updatePoseKernel(Matrix4 & pose, const std::vector<float> output, float icp_threshold) {
 	bool res = false;
 	//TICK();
 	// Update the pose regarding the tracking result
-	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output);
+	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output.data());
 	TooN::Vector<6> x = solve(values[0].slice<1, 27>());
 	TooN::SE3<> delta(x);
 	pose = toMatrix4(delta) * pose;
@@ -137,8 +141,8 @@ bool updatePoseKernel(Matrix4 & pose, const float * output, float icp_threshold)
 }
 
 // Check the tracking result, and go back to the previous camera position if necessary
-bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output, uint2 imageSize, float track_threshold) {
-	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output);
+bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> output, uint2 imageSize, float track_threshold) {
+	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output.data());
 
 	if ((std::sqrt(values(0, 0) / values(0, 28)) > 2e-2)
 			|| (values(0, 28) / (imageSize.x * imageSize.y) < track_threshold)) {
@@ -178,6 +182,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 	oldPose = pose;
 	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
 
+	// levels = 2,1,0
 	for (int level=iterations.size()-1; level>=0; --level) {
 		uint2 localimagesize = make_uint2(computationSize.x / (int) pow(2, level),
 										  computationSize.y / (int) pow(2, level));
