@@ -178,7 +178,6 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
 auto reduce_single_row = [](auto &sums, TrackData row) {
     if (row.result<1) {
-        // accesses sums[28..31]
         sums[29] += row.result == -4 ? 1 : 0; // (sums+28)[1]
         sums[30] += row.result == -5 ? 1 : 0; // (sums+28)[2]
         sums[31] += row.result > -4 ? 1 : 0;  // (sums+28)[3]
@@ -227,25 +226,27 @@ auto reduce_single_row = [](auto &sums, TrackData row) {
 };
 
 void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const uint2 Jsize, const uint2 out_size) {
-    //std::vector<int> sum_indices(32);
-    //std::iota(sum_indices.begin(), sum_indices.end(), 0);
-    /*std::for_each(sum_indices.begin(), sum_indices.end(), [](int i) {
+
+    // Loop through a generated list of block indices next
+    /*std::vector<int> block_indices(8);
+    std::iota(block_indices.begin(), block_indices.end(), 0);
+    std::for_each(block_indices.begin(), block_indices.end(), [=]() {
     });*/
 
-    // Loop through each block in the J vector
     for (uint blockIndex=0; blockIndex<8; blockIndex++)  {
-
-        // Prepare an iterator pointing to the output, clearing the next 32 elements
+        // Prepare an iterator pointing to the output
         auto output_sums = out.begin() + blockIndex*32;
-        for (uint i=0; i<32; ++i) {
-            output_sums[i] = 0;
-        }
+        std::fill(output_sums, output_sums+32, 0);
 
-        for (uint y=blockIndex; y<out_size.y; y+=8) {
+        // Generate y values at step 8
+        std::vector<int> y(out_size.y/8 + 1);
+        std::generate(y.begin(), y.end(), [n=blockIndex]() mutable { int retval = n; n+=8; return retval; });
+
+        std::for_each(y.begin(), y.end(), [=](int y) {
             auto input_iterator_begin = trackData.begin() + y*Jsize.x;
             auto input_iterator_end = trackData.begin() + y*Jsize.x + out_size.x;
             std::accumulate(input_iterator_begin, input_iterator_end, output_sums, reduce_single_row);
-    	}
+        });
     }
 }
 
