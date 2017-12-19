@@ -96,7 +96,7 @@ private:
 	void raycast(uint frame, const float4& k, float mu);
 
 public:
-	void init(uint3 volumeResolution, float3 volumeDimensions, std::vector<int> & pyramid) {
+	void initialise(uint3 volumeResolution, float3 volumeDimensions, std::vector<int> & pyramid) {
 		this->volumeDimensions = volumeDimensions;
 		this->volumeResolution = volumeResolution;
 		this->iterations.clear();
@@ -111,7 +111,7 @@ public:
 			float3 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
 
-		init(volumeResolution, volumeDimensions, pyramid);
+		initialise(volumeResolution, volumeDimensions, pyramid);
 		
 		this->_initPose = initPose;
 		pose = toMatrix4(TooN::SE3<float>(
@@ -125,7 +125,7 @@ public:
 			Matrix4 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
 
-		init(volumeResolution, volumeDimensions, pyramid);
+		initialise(volumeResolution, volumeDimensions, pyramid);
 
 		this->_initPose = getPosition();
 		pose = initPose;

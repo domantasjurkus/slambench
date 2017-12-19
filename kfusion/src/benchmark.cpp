@@ -171,16 +171,12 @@ int main(int argc, char ** argv) {
 	}
 
 	// Save metrics to output file
-	
-	/**logstream << "Total stage times\n"
-		<< std::endl
-		<< "frame\tacquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal    \tX          \tY          \tZ         \ttracked   \tintegrated"
-		<< std::endl;
-	std::cout << "\t";*/
+	*logstream << "Total stage times\n"
+		<< "acquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal\n";
 	for (int i=0; i<total_stage_times.size(); i++) {
-		*logstream << total_stage_times[i] << " ";
+		*logstream << total_stage_times[i] << "\t";
 	}
-	//std::cout << std::endl;
+	std::cout << std::endl;
 
 	// ==========     DUMP VOLUME      =========
 	if (config.dump_volume_file != "") {

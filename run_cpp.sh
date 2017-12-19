@@ -5,5 +5,4 @@
     --rendering-rate 4 \
     --compute-size-ratio 4 \
     --integration-rate 1 \
-    --camera 481.2,480,320,240 \
-    --log-file log_cpp.txt
+    --camera 481.2,480,320,240
