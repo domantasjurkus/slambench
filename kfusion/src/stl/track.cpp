@@ -3,8 +3,7 @@
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
 
-    // Map to output elements
-    // STL TODO
+    // Todo: map to output elements
     for (auto y=0; y<outSize.y; y++) {
         for (auto x=0; x<outSize.x; x++) {
             uint2 pixel = make_uint2(x,y);
@@ -13,18 +12,19 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             float sum = 0.0f;
             float t = 0.0f;
             const float center = in[centerPixel.x + centerPixel.y * inSize.x];
-            
-            for (int i=-r+1; i<=r; ++i) {
-                for (int j=-r+1; j<=r; ++j) {
-                    uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+j, centerPixel.y+i), make_int2(0),
-                                                 make_int2(outSize.x*2-1, outSize.y*2-1)));
-                    float current = in[cur.x + cur.y * inSize.x];
-                    if (fabsf(current - center) < e_d) {
-                        sum += 1.0f;
-                        t += current;
-                    }
+
+            std::vector<uint2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
+
+            std::for_each(pairs.begin(), pairs.end(), [&](uint2 p) {
+                uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
+                                             make_int2(outSize.x*2-1, outSize.y*2-1)));
+                float current = in[cur.x + cur.y*inSize.x];
+                if (fabsf(current - center) < e_d) {
+                    sum += 1.0f;
+                    t += current;
                 }
-            }
+            });
+            
             out[pixel.x + pixel.y * outSize.x] = t/sum;
         }
     }
