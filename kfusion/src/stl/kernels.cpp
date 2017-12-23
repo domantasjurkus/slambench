@@ -17,7 +17,8 @@ inline double tock() {
 }
 
 // input once
-float *gaussian;
+std::vector<float> gaussian;
+//float *gaussian;
 
 // inter-frame
 Volume volume;
@@ -29,57 +30,63 @@ std::vector<TrackData> trackingResult;
 //TrackData * trackingResult;
 Matrix4 oldPose;
 Matrix4 raycastPose;
-//float* reductionoutput;
 std::vector<float> reductionoutput;
+//float* reductionoutput;
 
-//float * floatDepth;
-//float ** ScaledDepth;
 std::vector<float> floatDepthVector;
 std::vector<std::vector<float>> scaledDepthVector;
+//float * floatDepth;
+//float ** ScaledDepth;
 
-//float3 ** inputVertex;
-//float3 ** inputNormal;
 std::vector<std::vector<float3>> inputVertex;
 std::vector<std::vector<float3>> inputNormal;
+//float3 ** inputVertex;
+//float3 ** inputNormal;
 
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
-	//reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
 	reductionoutput.resize(8*32);
+	//reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
 
+	scaledDepthVector.resize(iterations.size());
 	//ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
 	//inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
 	//inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
-	scaledDepthVector.resize(iterations.size());
 
 	inputVertex.resize(iterations.size());
 	inputNormal.resize(iterations.size());
 
 	for (auto i=0; i<iterations.size(); ++i) {
-		//ScaledDepth[i] = (float*) calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-		//inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-		//inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 		scaledDepthVector[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 		inputVertex[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 		inputNormal[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
+		//ScaledDepth[i] = (float*) calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+		//inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
+		//inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 	}
 
-	//floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
 	floatDepthVector.resize(computationSize.x * computationSize.y);
+	//floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
 
 	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
-	//trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
+
 	trackingResult.resize(computationSize.x * computationSize.y);
+	//trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
 
 	// ********* BEGIN : Generate the gaussian *************
-	size_t gaussianS = radius * 2 + 1;
-	gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
-	int x;
-	for (auto i=0; i<gaussianS; i++) {
-		x = i-2;
-		gaussian[i] = expf(-(x * x) / (2 * delta * delta));
-	}
+	size_t gaussianS = radius*2 + 1;
+	gaussian.resize(gaussianS);
+	//gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
+
+	std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
+		int x = i-2;
+		i++;
+		return expf(-(x*x) / (2*delta*delta));
+	});
+	// for (auto i=0; i<gaussianS; i++) {
+	// 	gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
+	// }
 	// ********* END : Generate the gaussian *************
 
 	volume.init(volumeResolution, volumeDimensions);
@@ -101,7 +108,7 @@ Kfusion::~Kfusion() {
 
 	free(vertex);
 	free(normal);
-	free(gaussian);
+	//free(gaussian);
 
 	volume.release();
 }
@@ -154,7 +161,7 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> o
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
 	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
-	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, computationSize, gaussian, e_delta, radius);
+	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, computationSize, gaussian.data(), e_delta, radius);
 	return true;
 }
 
