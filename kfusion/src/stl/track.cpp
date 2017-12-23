@@ -1,20 +1,19 @@
 #include <kernels_stl.h>
 
-// STL TODO
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
-    unsigned int y;
 
     // Map to output elements
-    for (y=0; y<outSize.y; y++) {
-        for (unsigned int x=0; x<outSize.x; x++) {
+    // STL TODO
+    for (auto y=0; y<outSize.y; y++) {
+        for (auto x=0; x<outSize.x; x++) {
             uint2 pixel = make_uint2(x,y);
             const uint2 centerPixel = pixel*2;
 
             float sum = 0.0f;
             float t = 0.0f;
             const float center = in[centerPixel.x + centerPixel.y * inSize.x];
-            // std::iota
+            
             for (int i=-r+1; i<=r; ++i) {
                 for (int j=-r+1; j<=r; ++j) {
                     uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+j, centerPixel.y+i), make_int2(0),
@@ -29,74 +28,50 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             out[pixel.x + pixel.y * outSize.x] = t/sum;
         }
     }
+
+    // for (y=0; y<outSize.y; y++) {
+    //     for (unsigned int x=0; x<outSize.x; x++) {
+    //         uint2 pixel = make_uint2(x,y);
+    //         const uint2 centerPixel = pixel*2;
+
+    //         float sum = 0.0f;
+    //         float t = 0.0f;
+    //         const float center = in[centerPixel.x + centerPixel.y * inSize.x];
+    //
+    //         for (int i=-r+1; i<=r; ++i) {
+    //             for (int j=-r+1; j<=r; ++j) {
+    //                 ...
+    //             }
+    //         }
+    //         out[pixel.x + pixel.y * outSize.x] = t/sum;
+    //     }
+    // }
 }
 
-// Original
-/*void halfSampleRobustImageKernel(float *out, const float *in, uint2 inSize, const float e_d, const int r) {
-    uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
-    unsigned int y;
-
-    // Map to output elements
-    for (y=0; y<outSize.y; y++) {
-        for (unsigned int x=0; x<outSize.x; x++) {
-            uint2 pixel = make_uint2(x,y);
-            const uint2 centerPixel = pixel*2;
-
-            float sum = 0.0f;
-            float t = 0.0f;
-            const float center = in[centerPixel.x + centerPixel.y * inSize.x];
-            // Reduction
-            for (int i=-r+1; i<=r; ++i) {
-                for (int j=-r+1; j<=r; ++j) {
-                    uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+j, centerPixel.y+i), make_int2(0),
-                                                 make_int2(outSize.x*2-1, outSize.y*2-1)));
-                    float current = in[cur.x + cur.y * inSize.x];
-                    if (fabsf(current - center) < e_d) {
-                        sum += 1.0f;
-                        t += current;
-                    }
-                }
-            }
-            out[pixel.x + pixel.y * outSize.x] = t/sum;
-        }
-    }
-}*/
-
-// STL TODO
 void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
-    // todo: conditional map to vertex
-    for (unsigned int y=0; y<imageSize.y; y++) {
-        for (unsigned int x=0; x<imageSize.x; x++) {
+    // Conditional map to vertex?
+    for (auto y=0; y<imageSize.y; y++) {
+        for (auto x=0; x<imageSize.x; x++) {
             if (depth[x + y*imageSize.x] > 0) {
                 // invK - intrinsic matrix of the camera
-                vertex[x + y*imageSize.x] = depth[x + y*imageSize.x]
-                        * (rotate(invK, make_float3(x,y,1.f)));
+                vertex[x + y*imageSize.x] = depth[x + y*imageSize.x] * rotate(invK, make_float3(x,y,1.f));
             } else {
                 vertex[x + y*imageSize.x] = make_float3(0);
             }
         }
     }
-}
 
-// Original
-/*void depth2vertexKernel(float3* vertex, const float * depth, uint2 imageSize, const Matrix4 invK) {
-    for (unsigned int y=0; y<imageSize.y; y++) {
-        for (unsigned int x=0; x<imageSize.x; x++) {
-            if (depth[x + y*imageSize.x] > 0) {
-                // invK - intrinsic matrix of the camera
-                vertex[x + y*imageSize.x] = depth[x + y*imageSize.x]
-                        * (rotate(invK, make_float3(x,y,1.f)));
-            } else {
-                vertex[x + y*imageSize.x] = make_float3(0);
-            }
-        }
-    }
-}*/
+    // for (unsigned int y=0; y<imageSize.y; y++) {
+    //     for (unsigned int x=0; x<imageSize.x; x++) {
+    //         ...
+    //     }
+    // }
+}
 
 void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
     // Map to out
-	for (unsigned int y = 0; y < imageSize.y; y++) {
-		for (unsigned int x = 0; x < imageSize.x; x++) {
+	for (auto y=0; y<imageSize.y; y++) {
+		for (auto x=0; x<imageSize.x; x++) {
 			const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
 			const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
 			const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
@@ -113,7 +88,7 @@ void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in,
 			}
 			const float3 dxv = right - left;
 			const float3 dyv = down - up;
-			out[x + y * imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
+			out[x + y*imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
 		}
 	}
 }
@@ -127,8 +102,8 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
     uint2 pixel = make_uint2(0, 0);
     unsigned int pixely, pixelx;
-    for (pixely = 0; pixely < inSize.y; pixely++) {
-        for (pixelx = 0; pixelx < inSize.x; pixelx++) {
+    for (pixely=0; pixely<inSize.y; pixely++) {
+        for (pixelx=0; pixelx<inSize.x; pixelx++) {
             pixel.x = pixelx;
             pixel.y = pixely;
 
