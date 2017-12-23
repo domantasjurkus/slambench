@@ -587,4 +587,21 @@ void writeVolume(std::string filename, Volume v) {
 	fDumpFile.close();
 }
 
+inline std::vector<uint2> generate_int_pairs(int from1, int to1, int from2, int to2) {
+    std::vector<int> is(to1-from1+1);
+    std::vector<int> js(to2-from1+1);
+    std::iota(is.begin(), is.end(), from1);
+    std::iota(js.begin(), js.end(), from2);
+
+    std::vector<uint2> pairs;
+
+    std::for_each(is.begin(), is.end(), [&](int i) {
+        std::for_each(js.begin(), js.end(), [&](int j) {
+            pairs.push_back(make_uint2(i,j));
+        });
+    });
+
+    return pairs;
+}
+
 #endif

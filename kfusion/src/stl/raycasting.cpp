@@ -32,8 +32,7 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
             } else {
                 //std::cerr<< "RAYCAST MISS "<<  pos.x << " " << pos.y <<"  " << hit.w <<"\n";
                 vertex[pos.x + pos.y * inputSize.x] = make_float3(0);
-                normal[pos.x + pos.y * inputSize.x] = make_float3(KFUSION_INVALID, 0,
-                        0);
+                normal[pos.x + pos.y * inputSize.x] = make_float3(KFUSION_INVALID, 0, 0);
             }
         }
     }

@@ -1,4 +1,4 @@
-#include <commons.h>
+#include <kernels_stl.h>
 
 void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize) {
     if ((inSize.x < outSize.x) || (inSize.y < outSize.y))           { std::cerr << "Invalid ratio." << std::endl; exit(1); }
@@ -8,7 +8,7 @@ void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, 
     int ratio = inSize.x / outSize.x;
 
     // Subsampilng in parallel would result in inconsistent results as
-    // there would be data races fow computing the x and y values
+    // there would be data races when computing the x and y values
     std::generate(out.begin(), out.end(), [x=0,y=0,in,inSize,outSize,ratio]() mutable {
         float ret = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
 		x++;
@@ -49,19 +49,19 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
             // We know the r value will be small (2 by default)
             // Therefore it may be sensible to generate a vector
             // of all (i,j) pairs, then loop std::for_each
-            for (int i=-r; i<=r; i++) {
-                for (int j=-r; j<=r; j++) {
-                    uint2 curPos = make_uint2(clamp(x+i, 0u, size.x-1),
-                                              clamp(y+j, 0u, size.y-1));
-                    const float curPix = in[curPos.x + curPos.y*size.x];
-                    if (curPix > 0) {
-                        const float mod = sq(curPix - center);
-                        const float factor = gaussian[i+r]*gaussian[j+r]*expf(-mod / e_d_squared_2);
-                        t += factor * curPix;
-                        sum += factor;
-                    }
+            std::vector<uint2> pairs = generate_int_pairs(-r,r,-r,r);
+
+            std::for_each(pairs.begin(), pairs.end(), [&](uint2 p) {
+                uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
+                                          clamp(y+p.y, 0u, size.y-1));
+                const float curPix = in[curPos.x + curPos.y*size.x];
+                if (curPix > 0) {
+                    const float mod = sq(curPix - center);
+                    const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
+                    t += factor * curPix;
+                    sum += factor;
                 }
-            }
+            });
             // for (int i=-r; i<=r; i++) {
             //     for (int j=-r; j<=r; j++) {
             //         uint2 curPos = make_uint2(clamp(x+i, 0u, size.x-1),
