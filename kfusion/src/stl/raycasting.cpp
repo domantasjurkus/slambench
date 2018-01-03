@@ -8,11 +8,8 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
     const Volume integration, const Matrix4 view, const float nearPlane,
     const float farPlane, const float step, const float largestep) {
 
-    unsigned int y;
-
-    //
-    for (y = 0; y < inputSize.y; y++) {
-        for (unsigned int x = 0; x < inputSize.x; x++) {
+    for (auto y=0; y<inputSize.y; y++) {
+        for (auto x=0; x<inputSize.x; x++) {
 
             uint2 pos = make_uint2(x, y);
 

@@ -19,7 +19,6 @@
 #include <cstring>
 #include <time.h>
 #include <csignal>
-#include <experimental/algorithm>
 
 #include <sys/types.h>
 #include <sys/stat.h>

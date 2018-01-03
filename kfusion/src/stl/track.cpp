@@ -215,7 +215,9 @@ void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const
 
         // Generate y values at step 8
         std::vector<int> y(out_size.y/8 + 1);
-        std::generate(y.begin(), y.end(), [n=blockIndex]() mutable { int retval = n; n+=8; return retval; });
+        std::generate(y.begin(), y.end(), [n=blockIndex]() mutable {
+            int retval = n; n+=8; return retval;
+        });
 
         std::for_each(y.begin(), y.end(), [=](int y) {
             auto input_iterator_begin = trackData.begin() + y*Jsize.x;

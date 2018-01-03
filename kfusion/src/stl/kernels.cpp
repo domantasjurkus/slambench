@@ -22,8 +22,11 @@ std::vector<float> gaussian;
 
 // inter-frame
 Volume volume;
-float3 *vertex;
-float3 *normal;
+
+std::vector<float3> vertex;
+std::vector<float3> normal;
+//float3 *vertex;
+//float3 *normal;
 
 // intra-frame
 std::vector<TrackData> trackingResult;
@@ -68,8 +71,10 @@ void Kfusion::languageSpecificConstructor() {
 	floatDepthVector.resize(computationSize.x * computationSize.y);
 	//floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
 
-	vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
-	normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
+	vertex.resize(computationSize.x * computationSize.y);
+	normal.resize(computationSize.x * computationSize.y);
+	//vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
+	//normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 
 	trackingResult.resize(computationSize.x * computationSize.y);
 	//trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
@@ -106,8 +111,8 @@ Kfusion::~Kfusion() {
 	//free(inputVertex);
 	//free(inputNormal);
 
-	free(vertex);
-	free(normal);
+	//free(vertex);
+	//free(normal);
 	//free(gaussian);
 
 	volume.release();
@@ -200,7 +205,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 			// compute the error
 			double a = tock();
 			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
-						localimagesize, vertex, normal, computationSize, pose,
+						localimagesize, vertex.data(), normal.data(), computationSize, pose,
 						projectReference, dist_threshold, normal_threshold);
 			double b = tock();
 					
@@ -221,7 +226,7 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 
 	if (frame > 2) {
 		raycastPose = pose;
-		raycastKernel(vertex, normal, computationSize, volume,
+		raycastKernel(vertex.data(), normal.data(), computationSize, volume,
 				raycastPose * getInverseCameraMatrix(k), nearPlane, farPlane,
 				step, 0.75f * mu);
 	}
