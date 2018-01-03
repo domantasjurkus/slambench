@@ -7,6 +7,7 @@
 
  */
 #include <kernels.h>
+#include <kfusion.h>
 #include <interface.h>
 #include <stdint.h>
 #include <tick.h>
