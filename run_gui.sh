@@ -1,0 +1,1 @@
+./build/kfusion/kfusion-qt-openmp -i ../living_room.raw
