@@ -25,7 +25,7 @@ void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, 
     std::vector<int> rows = iota(outSize.y);
 
     //for (y=0; y<outSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](uint y) {
+    std::for_each(rows.begin(), rows.end(), [&](uint y) {   
 		for (uint x=0; x<outSize.x; x++) {
 			out[x + outSize.x*y] = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
 		}
@@ -43,28 +43,29 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
     float e_d_squared_2 = e_d * e_d * 2;
 
     std::vector<int> rows = iota(size.y);
+    std::vector<int> cols = iota(size.x);
     
     // Stencil
     //for (auto y=0; y<size.y; y++) {
     std::for_each(rows.begin(), rows.end(), [&](uint y) {
     //ranges::for_each(rows, [&](uint y) {
-        for (auto x=0; x<size.x; x++) {
+
+        //for (int x=0; x<size.x; x++) {
+        std::for_each(cols.begin(), cols.end(), [&](uint x) {
             uint pos = x + y*size.x;
             if (in[pos] == 0) {
                 out[pos] = 0;
-                continue;
+                return;
             }
 
             const float center = in[pos];
-            float sum = 0.0f;
             float t = 0.0f;
+            float sum = 0.0f;
 
-            // We know the r value will be small (2 by default)
-            // Therefore it may be sensible to generate a vector
-            // of all (i,j) pairs
-            std::vector<uint2> pairs = generate_int_pairs(-r,r,-r,r);
+            std::vector<int2> pairs = generate_int_pairs(-r,r,-r,r);
 
-            std::for_each(pairs.begin(), pairs.end(), [&](uint2 p) {
+            //This will likely lead to race conditions - use atomic<float>?
+            std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
                 uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
                                           clamp(y+p.y, 0u, size.y-1));
                 const float curPix = in[curPos.x + curPos.y*size.x];
@@ -75,19 +76,32 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
                     sum += factor;
                 }
             });
-            out[pos] = t / sum;
 
-            // out[pos] = std::accumulate(pairs.begin(), pairs.end(), 0.0, [&](float acc, uint2 p) {
+            // Really bad idea: reduce to sum and t separately
+            // Definitely slower when sequential - how about par?
+            // t = std::accumulate(pairs.begin(), pairs.end(), 0.0f, [&](float acc, int2 p) {
             //     uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
             //                               clamp(y+p.y, 0u, size.y-1));
             //     const float curPix = in[curPos.x + curPos.y*size.x];
             //     if (curPix > 0) {
             //         const float mod = sq(curPix - center);
             //         const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
-            //         t += factor * curPix;
-            //         sum += factor;
+            //         return acc + factor * curPix;
             //     }
+            //     return acc;
             // });
+            // sum = std::accumulate(pairs.begin(), pairs.end(), 0.0f, [&](float acc, int2 p) {
+            //     uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
+            //                               clamp(y+p.y, 0u, size.y-1));
+            //     const float curPix = in[curPos.x + curPos.y*size.x];
+            //     if (curPix > 0) {
+            //         const float mod = sq(curPix - center);
+            //         const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
+            //         return acc + factor;
+            //     }
+            //     return acc;
+            // });
+            out[pos] = t / sum;
             
             // Original
             //
@@ -104,6 +118,6 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
             //         }
             //     }
             // }
-        }
+        });
     });
 }

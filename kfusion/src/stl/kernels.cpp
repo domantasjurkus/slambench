@@ -84,14 +84,17 @@ void Kfusion::languageSpecificConstructor() {
 	gaussian.resize(gaussianS);
 	//gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
 
-	std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
-		int x = i-2;
-		i++;
-		return expf(-(x*x) / (2*delta*delta));
+	// std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
+	// 	int x = i-2;
+	// 	i++;
+	// 	return expf(-(x*x) / (2*delta*delta));
+	// });
+	for (auto i=0; i<gaussianS; i++) {
+		gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
+	}
+	std::for_each(gaussian.begin(), gaussian.end(), [](float g) {
+		std::cout << g << " ";
 	});
-	// for (auto i=0; i<gaussianS; i++) {
-	// 	gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
-	// }
 	// ********* END : Generate the gaussian *************
 
 	volume.init(volumeResolution, volumeDimensions);

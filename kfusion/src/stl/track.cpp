@@ -13,9 +13,9 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             float t = 0.0f;
             const float center = in[centerPixel.x + centerPixel.y * inSize.x];
 
-            std::vector<uint2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
+            std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
 
-            std::for_each(pairs.begin(), pairs.end(), [&](uint2 p) {
+            std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
                 uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
                                              make_int2(outSize.x*2-1, outSize.y*2-1)));
                 float current = in[cur.x + cur.y*inSize.x];

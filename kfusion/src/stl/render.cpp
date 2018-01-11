@@ -12,6 +12,7 @@ void renderDepthKernel(uchar4* out, float* depth, uint2 depthSize, const float n
         std::vector<int> cols = iota(depthSize.x, rowOffeset);
 
         for (uint x=0; x<depthSize.x; x++) {
+        // Memory map error
         //std::for_each(cols.begin(), cols.end(), [&](int x) {
             uint pos = rowOffeset + x;
 
@@ -20,7 +21,6 @@ void renderDepthKernel(uchar4* out, float* depth, uint2 depthSize, const float n
                 out[pos] = make_uchar4(255, 255, 255, 0);
             } else {
                 if (depth[pos] > farPlane) {
-                    // The forth value is a padding in order to align memory
                     out[pos] = make_uchar4(0, 0, 0, 0);
                 } else {
                     const float d = (depth[pos] - nearPlane) * rangeScale;
@@ -42,6 +42,7 @@ void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 out
         //std::vector<int> cols = iota(outSize.x, rowOffeset);
 
         for (uint x=0; x<outSize.x; x++) {
+        // Segfault
         //std::for_each(cols.begin(), cols.end(), [&](int x) {
             uint pos = rowOffeset + x;
 
@@ -73,7 +74,6 @@ void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 out
     });
 }
 
-// depthSize = 480x360
 // Exactly the same as a raycast
 // Output is a color
 void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
@@ -81,13 +81,17 @@ void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
         const float step, const float largestep, const float3 light,
         const float3 ambient) {
 
-    unsigned int y;
+    std::vector<int> rows = iota(depthSize.y);
 
-    // Foreach output pixel
-    // Computationally intensive - opportunity for speedup
-    for (y = 0; y < depthSize.y; y++) {
-        for (unsigned int x = 0; x < depthSize.x; x++) {
-            const uint pos = x + y * depthSize.x;
+    //for (uint y=0; y<depthSize.y; y++) {
+    std::for_each(rows.begin(), rows.end(), [&](int y) {
+        int rowOffeset = y * depthSize.x;
+        std::vector<int> cols = iota(depthSize.x, rowOffeset);
+
+        for (uint x=0; x<depthSize.x; x++) {
+        // Memory map
+        //std::for_each(cols.begin(), cols.end(), [&](int x) {
+            const uint pos = x + rowOffeset;
 
             float4 hit = raycast(volume, make_uint2(x, y), view, nearPlane, farPlane, step, largestep);
             if (hit.w > 0) {
@@ -97,13 +101,13 @@ void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
                     const float3 diff = normalize(light - test);
                     const float dir = fmaxf(dot(normalize(surfNorm), diff), 0.f);
                     const float3 col = clamp(make_float3(dir) + ambient, 0.f, 1.f) * 255;
-                    out[pos] = make_uchar4(col.x, col.y, col.z, 0); // The forth value is a padding to align memory
+                    out[pos] = make_uchar4(col.x, col.y, col.z, 0);
                 } else {
-                    out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding to align memory
+                    out[pos] = make_uchar4(0, 0, 0, 0);
                 }
             } else {
-                out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding to align memory
+                out[pos] = make_uchar4(0, 0, 0, 0);
             }
-        }
-    }
+        };
+    });
 }
