@@ -1,0 +1,1 @@
+./build/kfusion/kfusion-qt-opencl -i ../living_room.raw

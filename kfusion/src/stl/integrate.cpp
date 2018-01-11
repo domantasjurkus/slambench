@@ -9,21 +9,19 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 
 	const float3 delta = rotate(invTrack, make_float3(0, 0, vol.dim.z / vol.size.z));
 	const float3 cameraDelta = rotate(K, delta);
-	unsigned int y;
-
 
     // We shouldn't parallelize it - but we did
     // There may be data races here
 
-    // Foreach (depends )
-	for (y=0; y<vol.size.y; y++) {
-		for (unsigned int x=0; x<vol.size.x; x++) {
+    // Map/Gather, from depth to volume
+	for (uint y=0; y<vol.size.y; y++) {
+		for (uint x=0; x<vol.size.x; x++) {
 
 			uint3 pix = make_uint3(x, y, 0); //pix.x = x;pix.y = y;
 			float3 pos = invTrack * vol.pos(pix);
 			float3 cameraX = K * pos;
 
-			for (pix.z=0; pix.z<vol.size.z; ++pix.z, pos += delta, cameraX += cameraDelta) {
+			for (pix.z=0; pix.z<vol.size.z; ++pix.z, pos+=delta, cameraX+=cameraDelta) {
 
 				if (pos.z < 0.0001f) // some near plane constraint
 					continue;

@@ -37,7 +37,9 @@ add_library(${appname}-cpp  src/cpp/kernels.cpp)
 target_link_libraries(${appname}-cpp   ${common_libraries})	
 add_version(${appname} cpp "" "")
 
-# ----------------- STL VERSION ----------------- 
+# ----------------- STL VERSION -----------------
+# Double-check if this is the right way to do it
+include_directories(/home/dom/range-v3/include)
 set(STL_FILES  src/stl/preprocess.cpp
             src/stl/track.cpp
             src/stl/integrate.cpp

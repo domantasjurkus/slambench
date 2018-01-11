@@ -17,11 +17,11 @@ private:
 	void raycast(uint frame, const float4& k, float mu);
 
 public:
-	void init(uint3 volumeResolution, float3 volumeDimensions, std::vector<int> & pyramid) {
+	void kfusion_init(uint3 volumeResolution, float3 volumeDimensions, std::vector<int> & pyramid) {
 		this->volumeDimensions = volumeDimensions;
 		this->volumeResolution = volumeResolution;
+		
 		this->iterations.clear();
-
 		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(this->iterations));
 
 		this->step = min(volumeDimensions) / max(volumeResolution);
@@ -32,7 +32,7 @@ public:
 			float3 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
 
-		init(volumeResolution, volumeDimensions, pyramid);
+		kfusion_init(volumeResolution, volumeDimensions, pyramid);
 		
 		this->_initPose = initPose;
 		pose = toMatrix4(TooN::SE3<float>(
@@ -46,7 +46,7 @@ public:
 			Matrix4 initPose, std::vector<int> & pyramid) :
 			computationSize(make_uint2(inputSize.x, inputSize.y)) {
 
-		init(volumeResolution, volumeDimensions, pyramid);
+		kfusion_init(volumeResolution, volumeDimensions, pyramid);
 
 		this->_initPose = getPosition();
 		pose = initPose;

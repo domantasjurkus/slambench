@@ -1,39 +1,50 @@
 #include <kernels_stl.h>
 
-void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize, const float nearPlane, const float farPlane) {
+void renderDepthKernel(uchar4* out, float* depth, uint2 depthSize, const float nearPlane, const float farPlane) {
     float rangeScale = 1 / (farPlane - nearPlane);
 
-    unsigned int y;
+    std::vector<int> rows = iota(depthSize.y);
 
-    // Map/transform
-    for (y = 0; y < depthSize.y; y++) {
+    // Map
+    //for (uint y=0; y<depthSize.y; y++) {
+    std::for_each(rows.begin(), rows.end(), [&](int y) {
         int rowOffeset = y * depthSize.x;
-        for (unsigned int x = 0; x < depthSize.x; x++) {
+        std::vector<int> cols = iota(depthSize.x, rowOffeset);
 
-            unsigned int pos = rowOffeset + x;
+        for (uint x=0; x<depthSize.x; x++) {
+        //std::for_each(cols.begin(), cols.end(), [&](int x) {
+            uint pos = rowOffeset + x;
 
-            if (depth[pos] < nearPlane)
-                out[pos] = make_uchar4(255, 255, 255, 0); // The forth value is a padding in order to align memory
-            else {
-                if (depth[pos] > farPlane)
-                    out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding in order to align memory
-                else {
+            if (depth[pos] < nearPlane) {
+                // The forth value is a padding in order to align memory
+                out[pos] = make_uchar4(255, 255, 255, 0);
+            } else {
+                if (depth[pos] > farPlane) {
+                    // The forth value is a padding in order to align memory
+                    out[pos] = make_uchar4(0, 0, 0, 0);
+                } else {
                     const float d = (depth[pos] - nearPlane) * rangeScale;
                     out[pos] = gs2rgb(d);
                 }
             }
-        }
-    }
+        //});
+        };
+    });
 }
 
 void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 outSize) {
+    std::vector<int> rows = iota(outSize.y);
 
-    unsigned int y;
+    // Map
+    //for (uint y=0; y<outSize.y; y++) {
+    std::for_each(rows.begin(), rows.end(), [&](int y) {
+        int rowOffeset = y * outSize.x;
+        //std::vector<int> cols = iota(outSize.x, rowOffeset);
 
-    // Map/transform
-    for (y = 0; y < outSize.y; y++) {
-        for (unsigned int x = 0; x < outSize.x; x++) {
-            uint pos = x + y * outSize.x;
+        for (uint x=0; x<outSize.x; x++) {
+        //std::for_each(cols.begin(), cols.end(), [&](int x) {
+            uint pos = rowOffeset + x;
+
             switch (data[pos].result) {
             case 1:
                 out[pos] = make_uchar4(128, 128, 128, 0);  // ok	 GREY
@@ -57,8 +68,9 @@ void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 out
                 out[pos] = make_uchar4(255, 128, 128, 0);
                 break;
             }
+        //});
         }
-    }
+    });
 }
 
 // depthSize = 480x360

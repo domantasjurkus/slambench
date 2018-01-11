@@ -3,7 +3,7 @@
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
 
-    // Todo: map to output elements
+    // Stencil
     for (auto y=0; y<outSize.y; y++) {
         for (auto x=0; x<outSize.x; x++) {
             uint2 pixel = make_uint2(x,y);
@@ -49,7 +49,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
 }
 
 void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
-    // Conditional map to vertex?
+    // Map
     for (auto y=0; y<imageSize.y; y++) {
         for (auto x=0; x<imageSize.x; x++) {
             if (depth[x + y*imageSize.x] > 0) {
@@ -69,7 +69,7 @@ void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> de
 }
 
 void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
-    // Map to out
+    // Stencil
 	for (auto y=0; y<imageSize.y; y++) {
 		for (auto x=0; x<imageSize.x; x++) {
 			const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
@@ -102,6 +102,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
     uint2 pixel = make_uint2(0, 0);
     unsigned int pixely, pixelx;
+    // Map
     for (pixely=0; pixely<inSize.y; pixely++) {
         for (pixelx=0; pixelx<inSize.x; pixelx++) {
             pixel.x = pixelx;
@@ -208,6 +209,7 @@ void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const
     std::for_each(block_indices.begin(), block_indices.end(), [=]() {
     });*/
 
+    // Reduction
     for (uint blockIndex=0; blockIndex<8; blockIndex++)  {
         // Prepare an iterator pointing to the output
         auto output_sums = out.begin() + blockIndex*32;

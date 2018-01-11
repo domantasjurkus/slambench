@@ -587,6 +587,12 @@ void writeVolume(std::string filename, Volume v) {
 	fDumpFile.close();
 }
 
+inline std::vector<int> iota(uint size, int start=0) {
+	std::vector<int> v(size);
+    std::iota(v.begin(), v.end(), start);
+	return v;
+}
+
 inline std::vector<uint2> generate_int_pairs(int from1, int to1, int from2, int to2) {
     std::vector<int> is(to1-from1+1);
     std::vector<int> js(to2-from1+1);
