@@ -637,13 +637,12 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 			make_float3(0, 0, vol.dim.z / vol.size.z));
 	const float3 cameraDelta = rotate(K, delta);
 	unsigned int y;
-#pragma omp parallel for \
-        shared(vol), private(y)
 
     // We shouldn't parallelize it - but we did
     // There may be data races here
 
-    // Foreach (depends )
+#pragma omp parallel for \
+        shared(vol), private(y)
 	for (y = 0; y < vol.size.y; y++)
 		for (unsigned int x = 0; x < vol.size.x; x++) {
 

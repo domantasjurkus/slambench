@@ -23,15 +23,18 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 
 			for (pix.z=0; pix.z<vol.size.z; ++pix.z, pos+=delta, cameraX+=cameraDelta) {
 
-				if (pos.z < 0.0001f) // some near plane constraint
+				if (pos.z < 0.0001f) { // some near plane constraint
 					continue;
+				}
 				const float2 pixel = make_float2(cameraX.x / cameraX.z + 0.5f, cameraX.y / cameraX.z + 0.5f);
-				if (pixel.x < 0 || pixel.x > depthSize.x - 1 || pixel.y < 0 || pixel.y > depthSize.y - 1)
+				if (pixel.x < 0 || pixel.x > depthSize.x - 1 || pixel.y < 0 || pixel.y > depthSize.y - 1) {
 					continue;
+				}
                 const uint2 px = make_uint2(pixel.x, pixel.y);
-				if (depth[px.x + px.y * depthSize.x] == 0)
+				if (depth[px.x + px.y * depthSize.x] == 0) {
                     continue;
-                    
+				}
+				
                 const float diff = (depth[px.x+px.y*depthSize.x]-cameraX.z) * std::sqrt(1+sq(pos.x/pos.z)+sq(pos.y/pos.z));
                 
 				if (diff > -mu) {

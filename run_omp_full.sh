@@ -1,9 +1,10 @@
 ./build/kfusion/kfusion-benchmark-openmp \
-    --input-file ../living_room_small.raw \
+    --input-file ../living_room.raw \
     --volume-size 4.8 \
     --init-pose 0.34,0.5,0.24 \
     --camera 481.2,480,320,240 \
     --compute-size-ratio 2 \
     --tracking-rate 1 \
     --integration-rate 1 \
-    --rendering-rate 4
+    --rendering-rate 4 \
+    --log-file benchmark_omp.log
