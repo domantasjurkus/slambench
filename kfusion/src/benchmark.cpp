@@ -5,13 +5,11 @@
 
  This code is licensed under the MIT License.
 
-*/
+ */
 
-#include <cstdlib>
-#include <commons.h>
-#include <interface.h>
 #include <kfusion.h>
-
+#include <kernels.h>
+#include <interface.h>
 #include <stdint.h>
 #include <vector>
 #include <sstream>
@@ -39,11 +37,14 @@ inline double tock() {
 		clock_gettime(CLOCK_MONOTONIC, &clockData);
 #endif
 		return (double) clockData.tv_sec + clockData.tv_nsec / 1000000000.0;
-}
+}	
+
+
 
 /***
  * This program loop over a scene recording
  */
+
 int main(int argc, char ** argv) {
 
 	Configuration config(argc, argv);
@@ -72,9 +73,12 @@ int main(int argc, char ** argv) {
 	DepthReader * reader;
 
 	if (is_file(config.input_file)) {
-		reader = new RawDepthReader(config.input_file, config.fps, config.blocking_read);
+		reader = new RawDepthReader(config.input_file, config.fps,
+				config.blocking_read);
+
 	} else {
-		reader = new SceneDepthReader(config.input_file, config.fps, config.blocking_read);
+		reader = new SceneDepthReader(config.input_file, config.fps,
+				config.blocking_read);
 	}
 
 	std::cout.precision(10);
@@ -82,7 +86,8 @@ int main(int argc, char ** argv) {
 
 	float3 init_pose = config.initial_pos_factor * config.volume_size;
 	const uint2 inputSize = reader->getinputSize();
-	std::cerr << "input Size is = " << inputSize.x << "," << inputSize.y << std::endl;
+	std::cerr << "input Size is = " << inputSize.x << "," << inputSize.y
+			<< std::endl;
 
 	//  =========  BASIC PARAMETERS  (input size / computation size )  =========
 
@@ -96,26 +101,27 @@ int main(int argc, char ** argv) {
 	//  =========  BASIC BUFFERS  (input / output )  =========
 
 	// Construction Scene reader and input buffer
-	uint16_t* inputDepth = (uint16_t*) malloc(sizeof(uint16_t) * inputSize.x * inputSize.y);
-	uchar4* depthRender = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
-	uchar4* trackRender = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
-	uchar4* volumeRender = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
+	uint16_t* inputDepth = (uint16_t*) malloc(
+			sizeof(uint16_t) * inputSize.x * inputSize.y);
+	uchar4* depthRender = (uchar4*) malloc(
+			sizeof(uchar4) * computationSize.x * computationSize.y);
+	uchar4* trackRender = (uchar4*) malloc(
+			sizeof(uchar4) * computationSize.x * computationSize.y);
+	uchar4* volumeRender = (uchar4*) malloc(
+			sizeof(uchar4) * computationSize.x * computationSize.y);
 
 	uint frame = 0;
 
 	Kfusion kfusion(computationSize, config.volume_resolution,
 			config.volume_size, init_pose, config.pyramid);
 
-	std::vector<double> timings(6);
+	double timings[7];
 	timings[0] = tock();
 
-	/**logstream
+	*logstream
 			<< "frame\tacquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal    \tX          \tY          \tZ         \ttracked   \tintegrated"
-			<< std::endl;*/
+			<< std::endl;
 	logstream->setf(std::ios::fixed, std::ios::floatfield);
-
-	std::vector<double> diff(8, 0);
-	std::vector<double> total_stage_times(8, 0);
 
 	while (reader->readNextDepthFrame(inputDepth)) {
 
@@ -124,65 +130,58 @@ int main(int argc, char ** argv) {
 		float xt = pose.data[0].w - init_pose.x;
 		float yt = pose.data[1].w - init_pose.y;
 		float zt = pose.data[2].w - init_pose.z;
+
 		timings[1] = tock();
 
 		kfusion.preprocessing(inputDepth, inputSize);
+
 		timings[2] = tock();
 
-		bool tracked = kfusion.tracking(camera, config.icp_threshold, config.tracking_rate, frame);
+		bool tracked = kfusion.tracking(camera, config.icp_threshold,
+				config.tracking_rate, frame);
+
 		timings[3] = tock();
 
-		bool integrated = kfusion.integration(camera, config.integration_rate, config.mu, frame);
+		bool integrated = kfusion.integration(camera, config.integration_rate,
+				config.mu, frame);
+
 		timings[4] = tock();
 
 		bool raycast = kfusion.raycasting(camera, config.mu, frame);
+
 		timings[5] = tock();
 
 		kfusion.renderDepth(depthRender, computationSize);
 		kfusion.renderTrack(trackRender, computationSize);
-		kfusion.renderVolume(volumeRender, computationSize, frame, config.rendering_rate, camera, 0.75 * config.mu);
+		kfusion.renderVolume(volumeRender, computationSize, frame,
+				config.rendering_rate, camera, 0.75 * config.mu);
+
 		timings[6] = tock();
 
-		for (int i=0; i<=5; i++) {
-			diff[i] = timings[i+1] - timings[i];
-		}
-		diff[6] = timings[5] - timings[1]; // Computation: from preprocessing to rendering
-		diff[7] = timings[6] - timings[0]; // Total time
-
-		*logstream << frame << "\t"
-				<< diff[0] << "\t"	//  acquisition
-				<< diff[1] << "\t"	//  preprocessing
-				<< diff[2] << "\t"	//  tracking
-				<< diff[3] << "\t"	//  integration
-				<< diff[4] << "\t"	//  raycasting
-				<< diff[5] << "\t"	//  rendering
-				<< diff[6] << "\t"	//  computation
-				<< diff[7] << "\t"	//  total
+		*logstream << frame << "\t" << timings[1] - timings[0] << "\t" //  acquisition
+				<< timings[2] - timings[1] << "\t"     //  preprocessing
+				<< timings[3] - timings[2] << "\t"     //  tracking
+				<< timings[4] - timings[3] << "\t"     //  integration
+				<< timings[5] - timings[4] << "\t"     //  raycasting
+				<< timings[6] - timings[5] << "\t"     //  rendering
+				<< timings[5] - timings[1] << "\t"     //  computation
+				<< timings[6] - timings[0] << "\t"     //  total
 				<< xt << "\t" << yt << "\t" << zt << "\t"     //  X,Y,Z
 				<< tracked << "        \t" << integrated // tracked and integrated flags
 				<< std::endl;
-		frame++;
 
-		std::transform(total_stage_times.begin(), total_stage_times.end(),
-			diff.begin(), total_stage_times.begin(), std::plus<double>());
+		frame++;
 
 		timings[0] = tock();
 	}
-
-	// Save metrics to output file
-	*logstream << "Total stage times\n"
-		<< "acquisition\tpreprocessing\ttracking\tintegration\traycasting\trendering\tcomputation\ttotal\n";
-	for (int i=0; i<total_stage_times.size(); i++) {
-		*logstream << total_stage_times[i] << "\t";
-	}
-	std::cout << std::endl;
-
 	// ==========     DUMP VOLUME      =========
+
 	if (config.dump_volume_file != "") {
-		kfusion.dumpVolume(config.dump_volume_file.c_str());
+	  kfusion.dumpVolume(config.dump_volume_file.c_str());
 	}
 
 	//  =========  FREE BASIC BUFFERS  =========
+
 	free(inputDepth);
 	free(depthRender);
 	free(trackRender);
@@ -190,3 +189,4 @@ int main(int argc, char ** argv) {
 	return 0;
 
 }
+

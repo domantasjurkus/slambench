@@ -1,6 +1,9 @@
 #ifndef _KFUSION_
 #define _KFUSION_
 
+#include <cstdlib>
+#include <commons.h>
+
 class Kfusion {
 private:
 	uint2 computationSize;

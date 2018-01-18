@@ -26,7 +26,6 @@ void renderDepthKernel(uchar4* out, float* depth, uint2 depthSize, const float n
                 }
             }
         });
-        //};
     });
 }
 
