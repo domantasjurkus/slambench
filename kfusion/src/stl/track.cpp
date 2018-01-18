@@ -3,9 +3,14 @@
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
 
-    // Stencil
-    for (auto y=0; y<outSize.y; y++) {
-        for (auto x=0; x<outSize.x; x++) {
+    std::vector<int> rows = iota(outSize.y);
+    std::vector<int> cols = iota(outSize.x);
+
+    //for (uint y=0; y<outSize.y; y++) {
+    std::for_each(rows.begin(), rows.end(), [&](int y) {
+
+        //for (uint x=0; x<outSize.x; x++) {
+        std::for_each(cols.begin(), cols.end(), [&](int x) {
             uint2 pixel = make_uint2(x,y);
             const uint2 centerPixel = pixel*2;
 
@@ -14,7 +19,8 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             const float center = in[centerPixel.x + centerPixel.y * inSize.x];
 
             std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
-
+            
+            // Stencil
             std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
                 uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
                                              make_int2(outSize.x*2-1, outSize.y*2-1)));
@@ -26,57 +32,46 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             });
             
             out[pixel.x + pixel.y * outSize.x] = t/sum;
-        }
-    }
-
-    // for (y=0; y<outSize.y; y++) {
-    //     for (unsigned int x=0; x<outSize.x; x++) {
-    //         uint2 pixel = make_uint2(x,y);
-    //         const uint2 centerPixel = pixel*2;
-
-    //         float sum = 0.0f;
-    //         float t = 0.0f;
-    //         const float center = in[centerPixel.x + centerPixel.y * inSize.x];
-    //
-    //         for (int i=-r+1; i<=r; ++i) {
-    //             for (int j=-r+1; j<=r; ++j) {
-    //                 ...
-    //             }
-    //         }
-    //         out[pixel.x + pixel.y * outSize.x] = t/sum;
-    //     }
-    // }
+        });
+    });
 }
 
 void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
-    // Map
-    for (auto y=0; y<imageSize.y; y++) {
-        for (auto x=0; x<imageSize.x; x++) {
+
+    std::vector<int> rows = iota(imageSize.y);
+    std::vector<int> cols = iota(imageSize.x);
+
+    //for (uint y=0; y<imageSize.y; y++) {
+    std::for_each(rows.begin(), rows.end(), [&](int y) {
+
+        //for (uint x=0; x<imageSize.x; x++) {
+        std::for_each(cols.begin(), cols.end(), [&](int x) {
             if (depth[x + y*imageSize.x] > 0) {
                 // invK - intrinsic matrix of the camera
                 vertex[x + y*imageSize.x] = depth[x + y*imageSize.x] * rotate(invK, make_float3(x,y,1.f));
             } else {
                 vertex[x + y*imageSize.x] = make_float3(0);
             }
-        }
-    }
-
-    // for (unsigned int y=0; y<imageSize.y; y++) {
-    //     for (unsigned int x=0; x<imageSize.x; x++) {
-    //         ...
-    //     }
-    // }
+        });
+    });
 }
 
 void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
-    // Stencil
-	for (auto y=0; y<imageSize.y; y++) {
-		for (auto x=0; x<imageSize.x; x++) {
+
+    std::vector<int> rows = iota(imageSize.y);
+    std::vector<int> cols = iota(imageSize.x);
+
+    //for (uint y=0; y<imageSize.y; y++) {
+    std::for_each(rows.begin(), rows.end(), [&](int y) {
+
+        //for (uint x=0; x<imageSize.x; x++) {
+        std::for_each(cols.begin(), cols.end(), [&](int x) {
 			const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
 			const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
 			const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
 			const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
 
+            // Stencil
 			const float3 left  = in[pleft.x + imageSize.x * pleft.y];
 			const float3 right = in[pright.x + imageSize.x * pright.y];
 			const float3 up    = in[pup.x + imageSize.x * pup.y];
@@ -84,13 +79,13 @@ void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in,
 
 			if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
 				out[x + y * imageSize.x].x = KFUSION_INVALID;
-				continue;
+				return;
 			}
 			const float3 dxv = right - left;
 			const float3 dyv = down - up;
 			out[x + y*imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
-		}
-	}
+		});
+	});
 }
 
 // TrackData includes the errors (how far I am to the pixel in front of me)
@@ -102,9 +97,15 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
     uint2 pixel = make_uint2(0, 0);
     unsigned int pixely, pixelx;
-    // Map
-    for (pixely=0; pixely<inSize.y; pixely++) {
-        for (pixelx=0; pixelx<inSize.x; pixelx++) {
+
+    std::vector<int> rows = iota(inSize.y);
+    std::vector<int> cols = iota(inSize.x);
+
+    //for (pixely=0; pixely<inSize.y; pixely++) {
+    std::for_each(rows.begin(), rows.end(), [&](int pixely) {
+        
+        //for (pixelx=0; pixelx<inSize.x; pixelx++) {
+        std::for_each(cols.begin(), cols.end(), [&](int pixelx) {
             pixel.x = pixelx;
             pixel.y = pixely;
 
@@ -112,7 +113,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
             if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
                 row.result = -1;
-                continue;
+                return;
             }
 
             const float3 projectedVertex = Ttrack * inVertex[pixel.x + pixel.y * inSize.x];
@@ -122,7 +123,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
             if (projPixel.x < 0 || projPixel.x > refSize.x - 1
                     || projPixel.y < 0 || projPixel.y > refSize.y - 1) {
                 row.result = -2;
-                continue;
+                return;
             }
 
             const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
@@ -130,7 +131,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
             if (referenceNormal.x == KFUSION_INVALID) {
                 row.result = -3;
-                continue;
+                return;
             }
 
             const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x] - projectedVertex;
@@ -138,18 +139,18 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
             if (length(diff) > dist_threshold) {
                 row.result = -4;
-                continue;
+                return;
             }
             if (dot(projectedNormal, referenceNormal) < normal_threshold) {
                 row.result = -5;
-                continue;
+                return;
             }
             row.result = 1;
             row.error = dot(referenceNormal, diff);
             ((float3 *) row.J)[0] = referenceNormal;
             ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
-        }
-    }
+        });
+    });
 }
 
 auto reduce_single_row = [](auto &sums, TrackData row) {
