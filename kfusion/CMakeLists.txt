@@ -54,18 +54,18 @@ set(COMPUTECPP_DEVICE_COMPILER_FLAGS "${COMPUTECPP_DEVICE_COMPILER_FLAGS} -DSYCL
 
 # ${CMAKE_CURRENT_SOURCE_DIR}/
 
-set(STL_FILES src/stl/kernels.cpp
-            src/stl/preprocess.cpp
-            src/stl/track.cpp
-            src/stl/integrate.cpp
-            src/stl/raycast.cpp
-            src/stl/raycasting.cpp
-            src/stl/render.cpp)
+set(STL_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/kernels.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/preprocess.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/track.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/integrate.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/raycast.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/raycasting.cpp
+              ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/render.cpp)
 
 add_library(${appname}-stl ${STL_FILES})
 target_link_libraries(${appname}-stl PRIVATE ${common_libraries})
 
-#add_sycl_to_target(${appname}-stl ${CMAKE_CURRENT_BINARY_DIR} ${STL_FILES})
+add_sycl_to_target(${appname}-stl ${CMAKE_CURRENT_BINARY_DIR} ${STL_FILES})
 add_version(${appname} stl "" "")
 
 # ----------------- OPENMP VERSION ----------------- 

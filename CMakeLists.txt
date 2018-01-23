@@ -4,8 +4,8 @@ project(pamela_testcases)
 
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O3 -std=gnu++17   ")
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3 -std=gnu++17  ")
+set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O3 -std=gnu++17")
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3 -std=gnu++17")
 
 #set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O3      -Wall -Wno-unknown-pragmas -Wextra -Werror ")
 #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -O3  -Wall -Wno-unknown-pragmas -Wextra -Werror ")
@@ -111,6 +111,4 @@ function(add_version appname version compile_flags link_flags)
 endfunction()
 
 
-add_subdirectory( kfusion )
-
-
+add_subdirectory(kfusion)
