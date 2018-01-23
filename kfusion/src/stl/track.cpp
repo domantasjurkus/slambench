@@ -16,7 +16,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
 
             float sum = 0.0f;
             float t = 0.0f;
-            const float center = in[centerPixel.x + centerPixel.y * inSize.x];
+            const float center = in[centerPixel.x + centerPixel.y*inSize.x];
 
             std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
             
@@ -109,14 +109,16 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
             pixel.x = pixelx;
             pixel.y = pixely;
 
-            TrackData &row = output[pixel.x + pixel.y * refSize.x];
+            TrackData &row = output[pixel.x + pixel.y*refSize.x];
 
-            if (inNormal[pixel.x + pixel.y * inSize.x].x == KFUSION_INVALID) {
+            // If the input normal is invalid
+            if (inNormal[pixel.x + pixel.y*inSize.x].x == KFUSION_INVALID) {
                 row.result = -1;
                 return;
             }
 
-            const float3 projectedVertex = Ttrack * inVertex[pixel.x + pixel.y * inSize.x];
+            // If the projected pixel is out of the frame
+            const float3 projectedVertex = Ttrack * inVertex[pixel.x + pixel.y*inSize.x];
             const float3 projectedPos = view * projectedVertex;
             const float2 projPixel = make_float2(projectedPos.x / projectedPos.z + 0.5f,
                                                  projectedPos.y / projectedPos.z + 0.5f);
@@ -127,20 +129,24 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
             }
 
             const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
-            const float3 referenceNormal = refNormal[refPixel.x + refPixel.y * refSize.x];
+            const float3 referenceNormal = refNormal[refPixel.x + refPixel.y*refSize.x];
 
+            // If the reference normal is invalid
             if (referenceNormal.x == KFUSION_INVALID) {
                 row.result = -3;
                 return;
             }
 
-            const float3 diff = refVertex[refPixel.x + refPixel.y * refSize.x] - projectedVertex;
+            const float3 diff = refVertex[refPixel.x + refPixel.y*refSize.x] - projectedVertex;
             const float3 projectedNormal = rotate(Ttrack, inNormal[pixel.x + pixel.y * inSize.x]);
 
+            // If the coordinate difference is beyond a threshold (outlier)
             if (length(diff) > dist_threshold) {
                 row.result = -4;
                 return;
             }
+
+            // If the normal product is below a threshold
             if (dot(projectedNormal, referenceNormal) < normal_threshold) {
                 row.result = -5;
                 return;
@@ -201,6 +207,20 @@ auto reduce_single_row = [](auto &sums, TrackData row) {
     sums[28] += 1; // extra info here (sums+28)[0]
     return sums;
 };
+
+// Previous workaround
+/*struct reduce_single_row {
+    template <typename T>
+    T operator()(T &sums, TrackData row) const {
+        
+        sums[0] += row.error * row.error;
+        sums[1] += row.error * row.J[0];
+        sums[2] += row.error * row.J[1];
+        ...
+        sums[28] += 1; // extra info here (sums+28)[0]
+        return sums;
+    };
+};*/
 
 void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const uint2 Jsize, const uint2 out_size) {
 

@@ -7,7 +7,7 @@
 
  */
 
-#include <kfusion.h>
+#include <kfusion_class.h>
 #include <kernels.h>
 #include <interface.h>
 #include <stdint.h>

@@ -29,6 +29,7 @@
 #include <string>
 #include <cmath>
 #include <iterator>
+#include <numeric>
 
 // Internal dependencies
 #include <default_parameters.h>
@@ -173,15 +174,12 @@ struct Volume {
 		return data[x + y * size.x + z * size.x * size.y].x;
 	}
 
-	void setints(const unsigned x, const unsigned y, const unsigned z,
-			const float2 &d) {
-		data[x + y * size.x + z * size.x * size.y] = make_short2(d.x * 32766.0f,
-				d.y);
+	void setints(const unsigned x, const unsigned y, const unsigned z, const float2 &d) {
+		data[x + y * size.x + z * size.x * size.y] = make_short2(d.x * 32766.0f, d.y);
 	}
 
 	void set(const uint3 & pos, const float2 & d) {
-		data[pos.x + pos.y * size.x + pos.z * size.x * size.y] = make_short2(
-				d.x * 32766.0f, d.y);
+		data[pos.x + pos.y * size.x + pos.z * size.x * size.y] = make_short2(d.x * 32766.0f, d.y);
 	}
 	float3 pos(const uint3 & p) const {
 		return make_float3((p.x + 0.5f) * dim.x / size.x,
@@ -191,13 +189,13 @@ struct Volume {
 	float interp(const float3 & pos) const {
 
 		const float3 scaled_pos = make_float3((pos.x * size.x / dim.x) - 0.5f,
-				(pos.y * size.y / dim.y) - 0.5f,
-				(pos.z * size.z / dim.z) - 0.5f);
+											  (pos.y * size.y / dim.y) - 0.5f,
+											  (pos.z * size.z / dim.z) - 0.5f);
 		const int3 base = make_int3(floorf(scaled_pos));
 		const float3 factor = fracf(scaled_pos);
 		const int3 lower = max(base, make_int3(0));
-		const int3 upper = min(base + make_int3(1),
-				make_int3(size) - make_int3(1));
+		const int3 upper = min(base + make_int3(1), make_int3(size) - make_int3(1));
+		
 		return (((vs2(lower.x, lower.y, lower.z) * (1 - factor.x)
 				+ vs2(upper.x, lower.y, lower.z) * factor.x) * (1 - factor.y)
 				+ (vs2(lower.x, upper.y, lower.z) * (1 - factor.x)
@@ -328,16 +326,16 @@ struct TrackData {
 	float J[6];
 };
 
-inline __host__      __device__ float3 operator*(const Matrix4 & M,
-		const float3 & v) {
+inline __host__      __device__ float3 operator*(const Matrix4 & M, const float3 & v) {
 	return make_float3(dot(make_float3(M.data[0]), v) + M.data[0].w,
-			dot(make_float3(M.data[1]), v) + M.data[1].w,
-			dot(make_float3(M.data[2]), v) + M.data[2].w);
+					   dot(make_float3(M.data[1]), v) + M.data[1].w,
+					   dot(make_float3(M.data[2]), v) + M.data[2].w);
 }
 
 inline float3 rotate(const Matrix4 & M, const float3 & v) {
 	return make_float3(dot(make_float3(M.data[0]), v),
-			dot(make_float3(M.data[1]), v), dot(make_float3(M.data[2]), v));
+					   dot(make_float3(M.data[1]), v),
+					   dot(make_float3(M.data[2]), v));
 }
 
 inline Matrix4 getCameraMatrix(const float4 & k) {
@@ -358,8 +356,10 @@ inline Matrix4 getInverseCameraMatrix(const float4 & k) {
 	return invK;
 }
 inline float4 operator*(const Matrix4 & M, const float4 & v) {
-	return make_float4(dot(M.data[0], v), dot(M.data[1], v), dot(M.data[2], v),
-			dot(M.data[3], v));
+	return make_float4(dot(M.data[0], v),
+					   dot(M.data[1], v),
+					   dot(M.data[2], v),
+					   dot(M.data[3], v));
 }
 
 inline Matrix4 inverse(const Matrix4 & A) {
@@ -387,8 +387,8 @@ TooN::Matrix<6> makeJTJ(const TooN::Vector<21, P, A> & v) {
 	C[4].template slice<4, 2>() = v.template slice<18, 2>();
 	C[5][5] = v[20];
 
-	for (int r = 1; r < 6; ++r)
-		for (int c = 0; c < r; ++c)
+	for (int r=1; r<6; ++r)
+		for (int c=0; c<r; ++c)
 			C[r][c] = C[c][r];
 
 	return C;
@@ -413,8 +413,7 @@ inline Matrix4 toMatrix4(const TooN::SE3<P> & p) {
 
 static const float epsilon = 0.0000001;
 
-inline void compareTrackData(std::string str, TrackData* l, TrackData * r,
-		uint size) {
+inline void compareTrackData(std::string str, TrackData *l, TrackData *r, uint size) {
 	for (unsigned int i = 0; i < size; i++) {
 		if (std::abs(l[i].error - r[i].error) > epsilon) {
 			std::cout << "Error into " << str << " at " << i << std::endl;
@@ -491,9 +490,9 @@ inline void compareMatrix4(std::string str, Matrix4 l, Matrix4 r) {
 
 inline void printMatrix4(std::string str, Matrix4 l) {
 	std::cout << "printMatrix4 : " << str << std::endl;
-	for (int i = 0; i < 4; i++) {
+	for (int i=0; i<4; i++) {
 		std::cout << "  [" << l.data[i].x << "," << l.data[i].y << ","
-				<< l.data[i].z << "," << l.data[i].w << "]" << std::endl;
+						   << l.data[i].z << "," << l.data[i].w << "]" << std::endl;
 	}
 }
 inline void compareNormal(std::string str, float3* l, float3 * r, uint size) {
