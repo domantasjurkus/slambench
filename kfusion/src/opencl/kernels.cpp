@@ -9,7 +9,7 @@
 
 #include "common_opencl.h"
 #include <kernels.h>
-#include <kfusion.h>
+#include <kfusion_class.h>
 
 #include <TooN/TooN.h>
 #include <TooN/se3.h>

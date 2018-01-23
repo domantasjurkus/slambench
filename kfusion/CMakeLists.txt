@@ -52,6 +52,8 @@ include_directories(${SYCL_PARALLEL_STL_INCLUDE_DIRECTORY})
 add_definitions(-DSYCL_PSTL_USE_OLD_ALGO)
 set(COMPUTECPP_DEVICE_COMPILER_FLAGS "${COMPUTECPP_DEVICE_COMPILER_FLAGS} -DSYCL_PSTL_USE_OLD_ALGO")
 
+# ${CMAKE_CURRENT_SOURCE_DIR}/
+
 set(STL_FILES src/stl/kernels.cpp
             src/stl/preprocess.cpp
             src/stl/track.cpp
@@ -63,7 +65,7 @@ set(STL_FILES src/stl/kernels.cpp
 add_library(${appname}-stl ${STL_FILES})
 target_link_libraries(${appname}-stl PRIVATE ${common_libraries})
 
-add_sycl_to_target(${appname}-stl ${CMAKE_CURRENT_BINARY_DIR} ${STL_FILES})
+#add_sycl_to_target(${appname}-stl ${CMAKE_CURRENT_BINARY_DIR} ${STL_FILES})
 add_version(${appname} stl "" "")
 
 # ----------------- OPENMP VERSION ----------------- 

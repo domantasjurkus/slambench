@@ -7,7 +7,7 @@
 
  */
 #include <kernels.h>
-#include <kfusion.h>
+#include <kfusion_class.h>
 
 #ifdef __APPLE__
 #include <mach/clock.h>
