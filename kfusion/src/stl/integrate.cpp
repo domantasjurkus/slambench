@@ -10,12 +10,15 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 	const float3 delta = rotate(invTrack, make_float3(0, 0, vol.dim.z / vol.size.z));
 	const float3 cameraDelta = rotate(K, delta);
 
-    // We shouldn't parallelize it - but we did
-    // There may be data races here
+	std::vector<int> rows = iota(vol.size.y);
+    std::vector<int> cols = iota(vol.size.x);
 
     // Map/Gather, from depth to volume
-	for (uint y=0; y<vol.size.y; y++) {
-		for (uint x=0; x<vol.size.x; x++) {
+	//for (uint y=0; y<vol.size.y; y++) {
+	std::for_each(rows.begin(), rows.end(), [&](int y) {
+
+		//for (uint x=0; x<vol.size.x; x++) {
+		std::for_each(cols.begin(), cols.end(), [&](int x) {
 
 			uint3 pix = make_uint3(x, y, 0); //pix.x = x;pix.y = y;
 			float3 pos = invTrack * vol.pos(pix);
@@ -45,6 +48,6 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 					vol.set(pix, data);
 				}
 			}
-        }
-    }
+		});
+    });
 }

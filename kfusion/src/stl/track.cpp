@@ -158,7 +158,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
         });
     });
 }
-/*
+
 auto reduce_single_row = [](auto &sums, TrackData row) {
     if (row.result<1) {
         sums[29] += row.result == -4 ? 1 : 0; // (sums+28)[1]
@@ -207,9 +207,8 @@ auto reduce_single_row = [](auto &sums, TrackData row) {
     sums[28] += 1; // extra info here (sums+28)[0]
     return sums;
 };
-*/
 
-struct reduce_single_row {
+/*struct reduce_single_row {
     template <typename T>
     T operator()(T &sums, TrackData row) const {
         if (row.result<1) {
@@ -259,7 +258,7 @@ struct reduce_single_row {
         sums[28] += 1; // extra info here (sums+28)[0]
         return sums;
     };
-};
+};*/
 
 void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const uint2 Jsize, const uint2 out_size) {
 
@@ -284,7 +283,7 @@ void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const
         std::for_each(y.begin(), y.end(), [=](int y) {
             auto input_iterator_begin = trackData.begin() + y*Jsize.x;
             auto input_iterator_end = trackData.begin() + y*Jsize.x + out_size.x;
-            std::accumulate(input_iterator_begin, input_iterator_end, output_sums, reduce_single_row{});
+            std::accumulate(input_iterator_begin, input_iterator_end, output_sums, reduce_single_row);
         });
     }
 }
