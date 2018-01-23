@@ -208,53 +208,15 @@ auto reduce_single_row = [](auto &sums, TrackData row) {
     return sums;
 };
 
+// Previous workaround
 /*struct reduce_single_row {
     template <typename T>
     T operator()(T &sums, TrackData row) const {
-        if (row.result<1) {
-            sums[29] += row.result == -4 ? 1 : 0; // (sums+28)[1]
-            sums[30] += row.result == -5 ? 1 : 0; // (sums+28)[2]
-            sums[31] += row.result > -4 ? 1 : 0;  // (sums+28)[3]
-            return sums;
-        }
-        // Error part
+        
         sums[0] += row.error * row.error;
-
-        // JTe part
         sums[1] += row.error * row.J[0];
         sums[2] += row.error * row.J[1];
-        sums[3] += row.error * row.J[2];
-        sums[4] += row.error * row.J[3];
-        sums[5] += row.error * row.J[4];
-        sums[6] += row.error * row.J[5];
-
-        // JTJ part, unfortunatly the double loop is not unrolled well...
-        sums[7] += row.J[0] * row.J[0];  // (sums+7)[0]
-        sums[8] += row.J[0] * row.J[1];  // (sums+7)[1]
-        sums[9] += row.J[0] * row.J[2];  // (sums+7)[2]
-        sums[10] += row.J[0] * row.J[3]; // (sums+7)[3]
-        sums[11] += row.J[0] * row.J[4]; // (sums+7)[4]
-        sums[12] += row.J[0] * row.J[5]; // etc.
-        
-        sums[13] += row.J[1] * row.J[1];
-        sums[14] += row.J[1] * row.J[2];
-        sums[15] += row.J[1] * row.J[3];
-        sums[16] += row.J[1] * row.J[4];
-        sums[17] += row.J[1] * row.J[5];
-
-        sums[18] += row.J[2] * row.J[2];
-        sums[19] += row.J[2] * row.J[3];
-        sums[20] += row.J[2] * row.J[4];
-        sums[21] += row.J[2] * row.J[5];
-
-        sums[22] += row.J[3] * row.J[3];
-        sums[23] += row.J[3] * row.J[4];
-        sums[24] += row.J[3] * row.J[5];
-
-        sums[25] += row.J[4] * row.J[4];
-        sums[26] += row.J[4] * row.J[5];
-
-        sums[27] += row.J[5] * row.J[5];
+        ...
         sums[28] += 1; // extra info here (sums+28)[0]
         return sums;
     };
