@@ -1,9 +1,6 @@
 #include <kernels_stl.h>
 #include <kfusion_class.h>
 
-#include <experimental/algorithm>
-#include <sycl/execution_policy>
-
 inline double tock() {
 	synchroniseDevices();
 #ifdef __APPLE__
@@ -172,7 +169,7 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> o
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
 	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
-	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, computationSize, gaussian.data(), e_delta, radius);
+	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, computationSize, gaussian, e_delta, radius);
 	return true;
 }
 
@@ -245,7 +242,7 @@ bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame)
 
 	if ((doIntegrate && ((frame % integration_rate) == 0)) || (frame <= 3)) {
 		// Commented out due to change from floatDepth to floatDepthVector
-		integrateKernel(volume, floatDepthVector.data(), computationSize, inverse(pose), getCameraMatrix(k), mu, maxweight);
+		integrateKernel(volume, floatDepthVector, computationSize, inverse(pose), getCameraMatrix(k), mu, maxweight);
 		doIntegrate = true;
 	} else {
 		doIntegrate = false;
@@ -289,8 +286,8 @@ void Kfusion::renderTrack(uchar4 * out, uint2 outputSize) {
 	renderTrackKernel(out, trackingResult, outputSize);
 }
 
-void Kfusion::renderDepth(uchar4 * out, uint2 outputSize) {
-	renderDepthKernel(out, floatDepthVector.data(), outputSize, nearPlane, farPlane);
+void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
+	renderDepthKernel(out, floatDepthVector, outputSize, nearPlane, farPlane);
 }
 
 void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,

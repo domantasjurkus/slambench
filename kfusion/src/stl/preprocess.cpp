@@ -1,7 +1,10 @@
 #include <kernels_stl.h>
 
-#include <range/v3/algorithm/for_each.hpp>
-#include <range/v3/view.hpp>
+//#include <experimental/algorithm>
+//#include <sycl/execution_policy>
+
+//#include <range/v3/algorithm/for_each.hpp>
+//#include <range/v3/view.hpp>
 
 void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize) {
     if ((inSize.x < outSize.x) || (inSize.y < outSize.y))           { std::cerr << "Invalid ratio." << std::endl; exit(1); }
@@ -12,7 +15,8 @@ void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, 
 
     // Subsampilng in parallel would result in inconsistent results as
     // there would be data races when computing the x and y values
-    // Gather
+    // Also this looks ugly
+
     // std::generate(out.begin(), out.end(), [x=0,y=0,in,inSize,outSize,ratio]() mutable {
     //     float ret = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
 	// 	x++;
@@ -30,16 +34,9 @@ void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, 
 			out[x + outSize.x*y] = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
 		}
     });
-
-    // Original
-    // for (y = 0; y < outSize.y; y++) {
-	// 	for (unsigned int x = 0; x < outSize.x; x++) {
-	// 		out[x + outSize.x * y] = in[x * ratio + inSize.x * y * ratio] / 1000.0f;
-	// 	}
-    // }
 }
 
-void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 size, const float* gaussian, float e_d, int r) {
+void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 size, const std::vector<float> gaussian, float e_d, int r) {
     float e_d_squared_2 = e_d * e_d * 2;
 
     std::vector<int> rows = iota(size.y);
@@ -64,32 +61,44 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
 
             std::vector<int2> pairs = generate_int_pairs(-r,r,-r,r);
 
-            //This will likely lead to race conditions - use atomic<float>?
+            //sycl::sycl_execution_policy<class preprocess1> par1;
+            //sycl::sycl_execution_policy<class preprocess2> par2;
+
+            //std::experimental::parallel::for_each(par, pairs.begin(), pairs.end(), [=](int2 p) {
             std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
                 uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
                                           clamp(y+p.y, 0u, size.y-1));
                 const float curPix = in[curPos.x + curPos.y*size.x];
                 if (curPix > 0) {
-                    const float mod = sq(curPix - center);
+                    //const float mod = sq(curPix - center);
+                    const float mod = std::pow(curPix-center, 2);
                     const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
                     t += factor * curPix;
                     sum += factor;
                 }
             });
 
-            // Really bad idea: reduce to sum and t separately
-            // Definitely slower when sequential - how about par?
-            // t = std::accumulate(pairs.begin(), pairs.end(), 0.0f, [&](float acc, int2 p) {
-            //     uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
-            //                               clamp(y+p.y, 0u, size.y-1));
-            //     const float curPix = in[curPos.x + curPos.y*size.x];
-            //     if (curPix > 0) {
-            //         const float mod = sq(curPix - center);
-            //         const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
-            //         return acc + factor * curPix;
-            //     }
+            // std::vector<float> hamster = {1.2f, 3.4f, 5.6f, 7.8f};
+            // sycl::sycl_execution_policy<class preprocess3> par3;
+
+            // t = std::experimental::parallel::reduce(par3, pairs.begin(), pairs.end(), 0.0f, [](float acc, int2 p) {
             //     return acc;
             // });
+
+            // Bad (?) idea: reduce i and sum separately
+            // t = std::experimental::parallel::reduce(par1, pairs.begin(), pairs.end(), 0.0f, [=](float acc, int2 p) {
+            //     return 1.0f;
+            //     // uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
+            //     //                           clamp(y+p.y, 0u, size.y-1));
+            //     // const float curPix = in[curPos.x + curPos.y*size.x];
+            //     // if (curPix > 0) {
+            //     //     const float mod = sq(curPix - center);
+            //     //     const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
+            //     //     return acc + factor*curPix;
+            //     // }
+            //     // return 0.0f;
+            // });
+
             // sum = std::accumulate(pairs.begin(), pairs.end(), 0.0f, [&](float acc, int2 p) {
             //     uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
             //                               clamp(y+p.y, 0u, size.y-1));

@@ -1,5 +1,8 @@
 #include <kernels_stl.h>
 
+//#include <experimental/algorithm>
+//#include <sycl/execution_policy>
+
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
 
@@ -31,7 +34,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
                 }
             });
             
-            out[pixel.x + pixel.y * outSize.x] = t/sum;
+            out[pixel.x + pixel.y*outSize.x] = t/sum;
         });
     });
 }
@@ -44,13 +47,26 @@ void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> de
     //for (uint y=0; y<imageSize.y; y++) {
     std::for_each(rows.begin(), rows.end(), [&](int y) {
 
+        int offset = y*imageSize.x;
+
+        // Can't do a transform since we need x coordinate in rotate()
+        // auto left  = vertex.begin() + imageSize.x * y;
+        // auto right = vertex.begin() + imageSize.x * (y+1) - 1;
+
+        // When doing a transform on a range, you can only see the depth values, not the x coordinate
+        // vertex[x + offset] = std::transform(left, right, [=](int ptr) {
+        //     if (depth[ptr] > 0) {
+        //          return depth[x + offset] * rotate(invK, make_float3(x,y,1.f));
+        //     }
+        //     return vertex[x + offset] = make_float3(0);
+        // });
+
         //for (uint x=0; x<imageSize.x; x++) {
         std::for_each(cols.begin(), cols.end(), [&](int x) {
-            if (depth[x + y*imageSize.x] > 0) {
-                // invK - intrinsic matrix of the camera
-                vertex[x + y*imageSize.x] = depth[x + y*imageSize.x] * rotate(invK, make_float3(x,y,1.f));
+            if (depth[x + offset] > 0) {
+                vertex[x + offset] = depth[x + offset] * rotate(invK, make_float3(x,y,1.f));
             } else {
-                vertex[x + y*imageSize.x] = make_float3(0);
+                vertex[x + offset] = make_float3(0);
             }
         });
     });
@@ -96,7 +112,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
         const float normal_threshold) {
 
     uint2 pixel = make_uint2(0, 0);
-    unsigned int pixely, pixelx;
+    //uint pixely, pixelx;
 
     std::vector<int> rows = iota(inSize.y);
     std::vector<int> cols = iota(inSize.x);
@@ -230,6 +246,8 @@ void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const
     std::for_each(block_indices.begin(), block_indices.end(), [=]() {
     });*/
 
+    //sycl::sycl_execution_policy<class reduce_row> par;
+
     // Reduction
     for (uint blockIndex=0; blockIndex<8; blockIndex++)  {
         // Prepare an iterator pointing to the output
@@ -243,9 +261,11 @@ void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const
         });
 
         std::for_each(y.begin(), y.end(), [=](int y) {
-            auto input_iterator_begin = trackData.begin() + y*Jsize.x;
-            auto input_iterator_end = trackData.begin() + y*Jsize.x + out_size.x;
-            std::accumulate(input_iterator_begin, input_iterator_end, output_sums, reduce_single_row);
+            auto begin = trackData.begin() + y*Jsize.x;
+            auto end = trackData.begin() + y*Jsize.x + out_size.x - 1;
+            // Accumulate used unconventionally?
+            std::accumulate(begin, end, output_sums, reduce_single_row);
+            //output_sums = std::experimental::parallel::reduce(par, begin, end, 0.0f, reduce_single_row);
         });
     }
 }

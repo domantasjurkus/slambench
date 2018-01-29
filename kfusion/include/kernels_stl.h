@@ -8,7 +8,7 @@
 
 void initVolumeKernel(Volume volume);
 
-void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 inSize, const float * gaussian, float e_d, int r);
+void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 inSize, const std::vector<float> gaussian, float e_d, int r);
 //void bilateralFilterKernel(float* out, const float* in, uint2 inSize, const float * gaussian, float e_d, int r);
 
 void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK);
@@ -43,7 +43,7 @@ bool updatePoseKernel(Matrix4 & pose, const std::vector<float> output, float icp
 bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> output, uint2 imageSize, float track_threshold);
 //bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output, uint2 imageSize, float track_threshold);
 
-void integrateKernel(Volume vol, const float* depth, uint2 imageSize,
+void integrateKernel(Volume vol, const std::vector<float> depth, uint2 imageSize,
 		const Matrix4 invTrack, const Matrix4 K, const float mu,
 		const float maxweight);
 
@@ -53,7 +53,8 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 
 ////////////////////////// RENDER KERNELS PROTOTYPES //////////////////////
 
-void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize, const float nearPlane, const float farPlane);
+//void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
+void renderDepthKernel(uchar4 *out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
 
 void renderNormaKernell(uchar3* out, const float3* normal, uint2 normalSize);
 

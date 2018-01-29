@@ -1,10 +1,22 @@
 #include <kernels_stl.h>
 
-void renderDepthKernel(uchar4* out, float* depth, uint2 depthSize, const float nearPlane, const float farPlane) {
+void renderDepthKernel(uchar4* out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane) {
     float rangeScale = 1 / (farPlane - nearPlane);
 
     std::vector<int> rows = iota(depthSize.y);
     std::vector<int> cols = iota(depthSize.x);
+
+    //     // auto input_start = depth.begin() + offset - 1;
+    //     // auto input_end = depth.begin() + offset + depthSize.x - 1;
+    //     // auto output_start = out.begin() + offset - 1;
+
+    //     // std::experimental::parallel::transform(par, input_start, input_end, output_start, [=](float depthValue) {
+    //     //     if (depthValue < nearPlane) { return make_uchar4(255, 255, 255, 0); }
+    //     //     if (depthValue > farPlane)  { return make_uchar4(0, 0, 0, 0); }
+
+    //     //     const float d = (depthValue - nearPlane) * rangeScale;
+    //     //     return gs2rgb(d);
+    //     // });
 
     // Map
     //for (uint y=0; y<depthSize.y; y++) {

@@ -3,7 +3,7 @@
 // Given the point cloud, how to update the volume
 // In-place transformation (side-effect to an argument) because we (usually) don't have enough memory
 // to store two Volumes in RAM
-void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
+void integrateKernel(Volume vol, const std::vector<float> depth, uint2 depthSize,
 		const Matrix4 invTrack, const Matrix4 K, const float mu,
 		const float maxweight) {
 
