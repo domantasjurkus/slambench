@@ -53,8 +53,8 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 
 ////////////////////////// RENDER KERNELS PROTOTYPES //////////////////////
 
-//void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
-void renderDepthKernel(uchar4 *out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
+void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
+//void renderDepthKernel(uchar4 *out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
 
 void renderNormaKernell(uchar3* out, const float3* normal, uint2 normalSize);
 

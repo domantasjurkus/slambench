@@ -84,9 +84,12 @@ public:
 	bool integration(float4 k, uint integration_rate, float mu, uint frame);
 
 	void dumpVolume(const char* filename);
+	
 	void renderVolume(uchar4 * out, const uint2 outputSize, int frame, int rate, float4 k, float mu);
 	void renderTrack(uchar4 * out, const uint2 outputSize);
 	void renderDepth(uchar4* out, uint2 outputSize);
+	void renderDepth(std::vector<uchar4> out, uint2 outputSize);
+
 	Matrix4 getPose() {
 		return pose;
 	}

@@ -1,6 +1,6 @@
 #include <kernels_stl.h>
 
-void renderDepthKernel(uchar4* out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane) {
+void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane) {
     float rangeScale = 1 / (farPlane - nearPlane);
 
     std::vector<int> rows = iota(depthSize.y);

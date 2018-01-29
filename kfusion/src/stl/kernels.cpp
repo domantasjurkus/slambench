@@ -286,8 +286,21 @@ void Kfusion::renderTrack(uchar4 * out, uint2 outputSize) {
 	renderTrackKernel(out, trackingResult, outputSize);
 }
 
-void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
+void Kfusion::renderDepth(std::vector<uchar4> out, uint2 outputSize) {
 	renderDepthKernel(out, floatDepthVector, outputSize, nearPlane, farPlane);
+}
+
+// Workaround for Qt
+void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
+	std::vector<uchar4> outVector(outputSize.x*outputSize.y);
+	for (int y=0; y<outputSize.y; y++) {
+		for (int x=0; x<outputSize.x; x++) {
+			int pos = x + y*outputSize.y;
+			outVector[pos] = out[pos];
+		}
+	}
+
+	renderDepthKernel(outVector, floatDepthVector, outputSize, nearPlane, farPlane);
 }
 
 void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
