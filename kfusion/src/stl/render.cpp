@@ -10,6 +10,7 @@
 // are not leaked to other translation units
 namespace {
     sycl::sycl_execution_policy<class render_depth> render_depth_par{};
+    sycl::sycl_execution_policy<class render_track> render_track_par{};
 }
 
 void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane) {
@@ -53,37 +54,23 @@ void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 
 
 void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> data, uint2 outSize) {
 
-    // Map
     for (uint y=0; y<outSize.y; y++) {
+        int offset = y*outSize.x;
+        auto input_start = data.begin() + offset;
+        auto input_end = data.begin() + offset + outSize.x;
+        auto output_start = out.begin() + offset;
 
-        for (uint x=0; x<outSize.x; x++) {
-
-            uint pos = x + y*outSize.x;
-
-            switch (data[pos].result) {
-            case 1:
-                out[pos] = make_uchar4(128, 128, 128, 0);  // ok	 GREY
-                break;
-            case -1:
-                out[pos] = make_uchar4(0, 0, 0, 0);      // no input BLACK
-                break;
-            case -2:
-                out[pos] = make_uchar4(255, 0, 0, 0);        // not in image RED
-                break;
-            case -3:
-                out[pos] = make_uchar4(0, 255, 0, 0);    // no correspondence GREEN
-                break;
-            case -4:
-                out[pos] = make_uchar4(0, 0, 255, 0);        // to far away BLUE
-                break;
-            case -5:
-                out[pos] = make_uchar4(255, 255, 0, 0);     // wrong normal YELLOW
-                break;
-            default:
-                out[pos] = make_uchar4(255, 128, 128, 0);
-                break;
-            }
-        };
+        std::experimental::parallel::transform(render_track_par, input_start, input_end, output_start, [](TrackData td) {
+        //std::transform(input_start, input_end, output_start, [](TrackData td) {
+            uint r = td.result;
+            if (r== 1) return make_uchar4(128, 128, 128, 0);
+            if (r==-1) return make_uchar4(0, 0, 0, 0);
+            if (r==-2) return make_uchar4(255, 0, 0, 0);
+            if (r==-3) return make_uchar4(0, 255, 0, 0);
+            if (r==-4) return make_uchar4(0, 0, 255, 0);
+            if (r==-5) return make_uchar4(255, 255, 0, 0);
+            return make_uchar4(255, 128, 128, 0);
+        });
     };
 }
 
@@ -94,14 +81,18 @@ void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Vo
         const float step, const float largestep, const float3 light,
         const float3 ambient) {
 
-    std::vector<int> rows = iota(depthSize.y);
-    std::vector<int> cols = iota(depthSize.x);
+    for (uint y=0; y<depthSize.y; y++) {
+        /*int offset = y*depthSize.x;
+        auto input_start = out.begin() + offset;
+        auto input_end = out.begin() + offset + depthSize.x;
+        auto output_start = out.begin() + offset;*/
 
-    //for (uint y=0; y<depthSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
+        //std::experimental::parallel::transform(render_track_par, input_start, input_end, output_start, [](TrackData td) {
+        /*std::transform(input_start, input_end, output_start, [=](uchar4 unused) {
 
-        //for (uint x=0; x<depthSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
+        }*/
+
+        for (uint x=0; x<depthSize.x; x++) {
             const uint pos = x + y*depthSize.x;
 
             float4 hit = raycast(volume, make_uint2(x, y), view, nearPlane, farPlane, step, largestep);
@@ -119,7 +110,6 @@ void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Vo
             } else {
                 out[pos] = make_uchar4(0, 0, 0, 0);
             }
-        });
-        //};
-    });
+        }
+    }
 }
