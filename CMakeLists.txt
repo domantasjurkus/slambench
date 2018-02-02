@@ -69,7 +69,7 @@ function(add_version appname version compile_flags link_flags)
         else(APPLE)
             target_link_libraries(${appname}-main-${version} ${appname}-${version} ${GLUT_LIBRARIES} ${OPENGL_LIBRARIES}  ${main_common_libraries} GL )
         endif(APPLE)
-    endif(GLUT_FOUND)
+    endif(GLUT_FOUND AND NOT ${version} STREQUAL "stl")
 
     #  ------ QT --------
     if (Qt5OpenGL_FOUND AND NOT ${version} STREQUAL "stl")
@@ -109,7 +109,7 @@ function(add_version appname version compile_flags link_flags)
     endif(APPLE)
         
     
-  endif(Qt5OpenGL_FOUND)
+  endif(Qt5OpenGL_FOUND AND NOT ${version} STREQUAL "stl")
 
 endfunction()
 

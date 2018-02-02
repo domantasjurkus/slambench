@@ -6,7 +6,8 @@
 //#include <range/v3/algorithm/for_each.hpp>
 //#include <range/v3/view.hpp>
 
-void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize) {
+//void mm2metersKernel(std::vector<float> &out, uint2 outSize, const std::vector<ushort> in, uint2 inSize) {
+void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort *in, uint2 inSize) {
     if ((inSize.x < outSize.x) || (inSize.y < outSize.y))           { std::cerr << "Invalid ratio." << std::endl; exit(1); }
     if ((inSize.x % outSize.x != 0) || (inSize.y % outSize.y != 0)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
     if ((inSize.x / outSize.x != inSize.y / outSize.y))             { std::cerr << "Invalid ratio." << std::endl; exit(1); }
@@ -56,27 +57,57 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
             }
 
             const float center = in[pos];
-            float t = 0.0f;
-            float sum = 0.0f;
+            // float t = 0.0f;
+            // float sum = 0.0f;
 
+            /*struct {
+                float t = 0.0f;
+                float sum = 0.0f;
+            } pair;*/
+
+            // After changing p to float2, ..
+            auto op = [&](float2 acc, int2 p) {
+                uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
+                                          clamp(y+p.y, 0u, size.y-1));
+                const float curPix = in[curPos.x + curPos.y*size.x];
+                if (curPix > 0) {
+                    const float mod = std::pow(curPix-center, 2);
+                    const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
+                    acc.x += (factor * curPix);
+                    acc.y += factor;
+                }
+                return acc;
+            };
+
+            // Generate float pairs so that 
             std::vector<int2> pairs = generate_int_pairs(-r,r,-r,r);
+
+            
+
+            // If the operator for reduction is of two different types, it cannot be associative.
+
+            // Come up with a simple non-associative opeartor using int pairs
+
+            auto ret = std::accumulate(pairs.begin(), pairs.end(), make_float2(0.0f, 0.0f), op);
 
             //sycl::sycl_execution_policy<class preprocess1> par1;
             //sycl::sycl_execution_policy<class preprocess2> par2;
 
             //std::experimental::parallel::for_each(par, pairs.begin(), pairs.end(), [=](int2 p) {
-            std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
-                uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
-                                          clamp(y+p.y, 0u, size.y-1));
-                const float curPix = in[curPos.x + curPos.y*size.x];
-                if (curPix > 0) {
-                    //const float mod = sq(curPix - center);
-                    const float mod = std::pow(curPix-center, 2);
-                    const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
-                    t += factor * curPix;
-                    sum += factor;
-                }
-            });
+            // std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
+            //     uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
+            //                               clamp(y+p.y, 0u, size.y-1));
+            //     const float curPix = in[curPos.x + curPos.y*size.x];
+            //     if (curPix > 0) {
+            //         //const float mod = sq(curPix - center);
+            //         const float mod = std::pow(curPix-center, 2);
+            //         const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
+            //         // t += factor * curPix;
+            //         // sum += factor;
+            //         pair.add(factor, curPix);
+            //     }
+            // });
+
 
             // std::vector<float> hamster = {1.2f, 3.4f, 5.6f, 7.8f};
             // sycl::sycl_execution_policy<class preprocess3> par3;
@@ -110,7 +141,7 @@ void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in,
             //     }
             //     return acc;
             // });
-            out[pos] = t / sum;
+            out[pos] = ret.x / ret.y; //t / sum;
             
             // Original
             //

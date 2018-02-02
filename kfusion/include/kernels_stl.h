@@ -11,6 +11,9 @@
 
 void initVolumeKernel(Volume volume);
 
+//void mm2metersKernel(std::vector<float> &out, uint2 outSize, const std::vector<ushort> in, uint2 inSize);
+void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize);
+
 void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 inSize, const std::vector<float> gaussian, float e_d, int r);
 //void bilateralFilterKernel(float* out, const float* in, uint2 inSize, const float * gaussian, float e_d, int r);
 
@@ -33,9 +36,6 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
 
 void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize);
 //void vertex2normalKernel(float3 * out, const float3 * in, uint2 imageSize);
-
-void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize);
-//void mm2metersKernel(float * out, uint2 outSize, const ushort * in, uint2 inSize);
 
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 imageSize, const float e_d, const int r);
 //void halfSampleRobustImageKernel(float* out, const float* in, uint2 imageSize, const float e_d, const int r);

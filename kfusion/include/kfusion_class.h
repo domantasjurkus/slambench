@@ -82,12 +82,13 @@ public:
 		float zt = pose.data[2].w - _initPose.z;
 		return (make_float3(xt, yt, zt));
 	}
-	void computeFrame(const ushort * inputDepth, const uint2 inputSize,
+
+	bool preprocessing(const ushort *inputDepth, const uint2 inputSize);
+	//bool preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize);
+	
+	void computeFrame(const ushort *inputDepth, const uint2 inputSize,
 			float4 k, uint integration_rate, uint tracking_rate,
 			float icp_threshold, float mu, const uint frame);
-
-	bool preprocessing(const ushort * inputDepth, const uint2 inputSize);
-	bool preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize);
 
 	bool tracking(float4 k, float icp_threshold, uint tracking_rate, uint frame);
 	bool raycasting(float4 k, float mu, uint frame);

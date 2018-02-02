@@ -169,7 +169,8 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> o
 	return true;
 }
 
-bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
+bool Kfusion::preprocessing(const ushort *inputDepth, const uint2 inputSize) {
+//bool Kfusion::preprocessing(const ushort *inputDepth, const uint2 inputSize) {
 	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
 	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, computationSize, gaussian, e_delta, radius);
 	return true;
@@ -280,17 +281,9 @@ void Kfusion::renderDepth(std::vector<uchar4> out, uint2 outputSize) {
 	renderDepthKernel(out, floatDepthVector, outputSize, nearPlane, farPlane);
 }
 
-/*void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
-	// ...
-}*/
-
 void Kfusion::renderTrack(std::vector<uchar4> out, uint2 outputSize) {
 	renderTrackKernel(out, trackingResult, outputSize);
 }
-
-/*void Kfusion::renderTrack(uchar4 *out, uint2 outputSize) {
-	// ...
-}*/
 
 void Kfusion::renderVolume(std::vector<uchar4> out, uint2 outputSize, int frame, int raycast_rendering_rate, float4 k, float largestep) {
 	if (frame % raycast_rendering_rate == 0) {
@@ -300,11 +293,7 @@ void Kfusion::renderVolume(std::vector<uchar4> out, uint2 outputSize, int frame,
 	}
 }
 
-/*void Kfusion::renderVolume(uchar4 *out, uint2 outputSize, int frame, int raycast_rendering_rate, float4 k, float largestep) {
-	// ...
-}*/
-
-void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
+void Kfusion::computeFrame(const ushort *inputDepth, const uint2 inputSize,
 			float4 k, uint integration_rate, uint tracking_rate,
 			float icp_threshold, float mu, const uint frame) {
     preprocessing(inputDepth, inputSize);
