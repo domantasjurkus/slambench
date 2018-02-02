@@ -4,6 +4,9 @@
 #include <cstdlib>
 #include <commons.h>
 
+// Since most of these functions are only used in a single CPP file,
+// we don't need most of these headers
+
 ////////////////////////// COMPUTATION KERNELS PROTOTYPES //////////////////////
 
 void initVolumeKernel(Volume volume);
@@ -52,16 +55,16 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 		const float farPlane, const float step, const float largestep);
 
 ////////////////////////// RENDER KERNELS PROTOTYPES //////////////////////
-
+//template <class T>
+//void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane, sycl::sycl_execution_policy<T> policy);
 void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
-//void renderDepthKernel(uchar4 *out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane);
 
-void renderNormaKernell(uchar3* out, const float3* normal, uint2 normalSize);
+//void renderNormaKernell(uchar3* out, const float3* normal, uint2 normalSize);
 
 //void renderTrackKernel(uchar4* out, const TrackData* data, uint2 outSize);
-void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 outSize);
+void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> data, uint2 outSize);
 
-void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
+void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Volume volume,
 		const Matrix4 view, const float nearPlane, const float farPlane,
 		const float step, const float largestep, const float3 light,
 		const float3 ambient);

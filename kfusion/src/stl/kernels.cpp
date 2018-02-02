@@ -1,6 +1,10 @@
 #include <kernels_stl.h>
 #include <kfusion_class.h>
 
+#include <sycl/execution_policy>
+
+//sycl::sycl_execution_policy<class render_depth> par_render_depth;
+
 inline double tock() {
 	synchroniseDevices();
 #ifdef __APPLE__
@@ -84,6 +88,7 @@ void Kfusion::languageSpecificConstructor() {
 	gaussian.resize(gaussianS);
 	//gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
 
+	// This is another way of generating a gaussian, but it looks more complicated than it has to be
 	// std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
 	// 	int x = i-2;
 	// 	i++;
@@ -92,9 +97,6 @@ void Kfusion::languageSpecificConstructor() {
 	for (auto i=0; i<gaussianS; i++) {
 		gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
 	}
-	std::for_each(gaussian.begin(), gaussian.end(), [](float g) {
-		std::cout << g << " ";
-	});
 	// ********* END : Generate the gaussian *************
 
 	volume.init(volumeResolution, volumeDimensions);
@@ -178,7 +180,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 		return false;
 
 	// half sample the input depth maps into the pyramid levels
-	for (unsigned int i=1; i<iterations.size(); ++i) {
+	for (uint i=1; i<iterations.size(); ++i) {
 		halfSampleRobustImageKernel(scaledDepthVector[i], scaledDepthVector[i-1],
 				make_uint2(computationSize.x / (int) pow(2, i-1),
 						   computationSize.y / (int) pow(2, i-1)), e_delta*3, 1);
@@ -274,34 +276,33 @@ void Kfusion::dumpVolume(const char *filename) {
 	fDumpFile.close();
 }
 
-void Kfusion::renderVolume(uchar4 * out, uint2 outputSize, int frame,
-		int raycast_rendering_rate, float4 k, float largestep) {
-	if (frame % raycast_rendering_rate == 0)
-		renderVolumeKernel(out, outputSize, volume,
-				*(this->viewPose) * getInverseCameraMatrix(k), nearPlane,
-				farPlane * 2.0f, step, largestep, light, ambient);
-}
-
-void Kfusion::renderTrack(uchar4 * out, uint2 outputSize) {
-	renderTrackKernel(out, trackingResult, outputSize);
-}
-
 void Kfusion::renderDepth(std::vector<uchar4> out, uint2 outputSize) {
 	renderDepthKernel(out, floatDepthVector, outputSize, nearPlane, farPlane);
 }
 
-// Workaround for Qt
-void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
-	std::vector<uchar4> outVector(outputSize.x*outputSize.y);
-	for (int y=0; y<outputSize.y; y++) {
-		for (int x=0; x<outputSize.x; x++) {
-			int pos = x + y*outputSize.y;
-			outVector[pos] = out[pos];
-		}
-	}
+/*void Kfusion::renderDepth(uchar4 *out, uint2 outputSize) {
+	// ...
+}*/
 
-	renderDepthKernel(outVector, floatDepthVector, outputSize, nearPlane, farPlane);
+void Kfusion::renderTrack(std::vector<uchar4> out, uint2 outputSize) {
+	renderTrackKernel(out, trackingResult, outputSize);
 }
+
+/*void Kfusion::renderTrack(uchar4 *out, uint2 outputSize) {
+	// ...
+}*/
+
+void Kfusion::renderVolume(std::vector<uchar4> out, uint2 outputSize, int frame, int raycast_rendering_rate, float4 k, float largestep) {
+	if (frame % raycast_rendering_rate == 0) {
+		renderVolumeKernel(out, outputSize, volume,
+				*(this->viewPose) * getInverseCameraMatrix(k), nearPlane,
+				farPlane * 2.0f, step, largestep, light, ambient);
+	}
+}
+
+/*void Kfusion::renderVolume(uchar4 *out, uint2 outputSize, int frame, int raycast_rendering_rate, float4 k, float largestep) {
+	// ...
+}*/
 
 void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
 			float4 k, uint integration_rate, uint tracking_rate,

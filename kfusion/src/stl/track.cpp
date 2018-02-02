@@ -2,6 +2,7 @@
 
 //#include <experimental/algorithm>
 //#include <sycl/execution_policy>
+//#include <experimental/numeric>
 
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
@@ -175,6 +176,7 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
     });
 }
 
+// Associativity? (acc and row are of different operators)
 auto reduce_single_row = [](auto &sums, TrackData row) {
     if (row.result<1) {
         sums[29] += row.result == -4 ? 1 : 0; // (sums+28)[1]
@@ -266,6 +268,17 @@ void new_reduce(std::vector<float> &out, std::vector<TrackData> trackData, const
             // Accumulate used unconventionally?
             std::accumulate(begin, end, output_sums, reduce_single_row);
             //output_sums = std::experimental::parallel::reduce(par, begin, end, 0.0f, reduce_single_row);
+            
+            // Transform from a TrackData instance to float
+            //std::experimental::parallel::transform_reduce();
+
+            /*std::vector<double> xvalues(10007, 1.0), yvalues(10007, 1.0);
+ 
+            double result = std::experimental::parallel::transform_reduce(
+                xvalues.begin(), xvalues.end(),
+                yvalues.begin(), 0.0
+            );
+            std::cout << result << '\n';*/
         });
     }
 }

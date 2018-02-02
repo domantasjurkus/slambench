@@ -45,31 +45,34 @@ function(add_version appname version compile_flags link_flags)
         set(main_common_compile_flags "-DDO_OPENNI ${main_common_compile_flags}")
     endif(OPENNI2_FOUND)
 
-
-
     #  ------ BENCHMARK --------
-    add_executable(${appname}-benchmark-${version} src/benchmark.cpp src/PowerMonitor.cpp)
+    # Use a separate benchmark source file for STL which will use vectors
+    if (${version} STREQUAL "stl")
+        add_executable(${appname}-benchmark-${version} src/benchmark_stl.cpp src/PowerMonitor.cpp)
+    else()
+        add_executable(${appname}-benchmark-${version} src/benchmark.cpp src/PowerMonitor.cpp)
+    endif()
     target_link_libraries(${appname}-benchmark-${version} ${appname}-${version} ${main_common_libraries})
     SET_TARGET_PROPERTIES(${appname}-benchmark-${version}
                                 PROPERTIES COMPILE_FLAGS "${main_common_compile_flags}")
 
 
     #  ------ MAIN --------
-    if (GLUT_FOUND)
+    # Do not complie with STL since main functions use pointers
+    if (GLUT_FOUND AND NOT ${version} STREQUAL "stl")
         add_executable(${appname}-main-${version} src/mainQt.cpp src/PowerMonitor.cpp src/reader.cpp)
         SET_TARGET_PROPERTIES(${appname}-main-${version}
                                 PROPERTIES COMPILE_FLAGS "${main_common_compile_flags}")
 
-
-    if(APPLE)
-        target_link_libraries(${appname}-main-${version} ${appname}-${version} ${GLUT_LIBRARIES} ${OPENGL_LIBRARIES}  ${main_common_libraries} )
-    else(APPLE)
-        target_link_libraries(${appname}-main-${version} ${appname}-${version} ${GLUT_LIBRARIES} ${OPENGL_LIBRARIES}  ${main_common_libraries} GL )
-    endif(APPLE)
+        if(APPLE)
+            target_link_libraries(${appname}-main-${version} ${appname}-${version} ${GLUT_LIBRARIES} ${OPENGL_LIBRARIES}  ${main_common_libraries} )
+        else(APPLE)
+            target_link_libraries(${appname}-main-${version} ${appname}-${version} ${GLUT_LIBRARIES} ${OPENGL_LIBRARIES}  ${main_common_libraries} GL )
+        endif(APPLE)
     endif(GLUT_FOUND)
-    #  ------ QT --------
-    if (Qt5OpenGL_FOUND)
 
+    #  ------ QT --------
+    if (Qt5OpenGL_FOUND AND NOT ${version} STREQUAL "stl")
         file(GLOB qt_srcs qt/*)
 
         QT5_ADD_RESOURCES( ResourceSources  "qt/images.qrc")

@@ -25,7 +25,15 @@ public:
 		this->volumeResolution = volumeResolution;
 		
 		this->iterations.clear();
-		std::move(pyramid.begin(), pyramid.end(), std::back_inserter(this->iterations));
+		
+		// Reallocation of memory (bad):
+		// std::move(pyramid.begin(), pyramid.end(), std::back_inserter(this->iterations));
+
+		// Why not this one?
+		// this->iterations = pyramid;
+
+		this->iterations = std::move(pyramid);
+		// this->iterators = pyramid would trigger copying
 
 		this->step = min(volumeDimensions) / max(volumeResolution);
 		this->languageSpecificConstructor();
@@ -79,16 +87,24 @@ public:
 			float icp_threshold, float mu, const uint frame);
 
 	bool preprocessing(const ushort * inputDepth, const uint2 inputSize);
+	bool preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize);
+
 	bool tracking(float4 k, float icp_threshold, uint tracking_rate, uint frame);
 	bool raycasting(float4 k, float mu, uint frame);
 	bool integration(float4 k, uint integration_rate, float mu, uint frame);
 
 	void dumpVolume(const char* filename);
-	
-	void renderVolume(uchar4 * out, const uint2 outputSize, int frame, int rate, float4 k, float mu);
-	void renderTrack(uchar4 * out, const uint2 outputSize);
-	void renderDepth(uchar4* out, uint2 outputSize);
+
+	// Two versions of each function, one to match the API of existing implementations,
+	// another for using STL containers
+	void renderDepth(uchar4 *out, uint2 outputSize);
 	void renderDepth(std::vector<uchar4> out, uint2 outputSize);
+
+	void renderTrack(uchar4 *out, const uint2 outputSize);
+	void renderTrack(std::vector<uchar4> out, const uint2 outputSize);
+
+	void renderVolume(uchar4 * out, const uint2 outputSize, int frame, int rate, float4 k, float mu);
+	void renderVolume(std::vector<uchar4> out, const uint2 outputSize, int frame, int rate, float4 k, float mu);
 
 	Matrix4 getPose() {
 		return pose;

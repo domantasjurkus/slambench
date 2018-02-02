@@ -1,57 +1,63 @@
 #include <kernels_stl.h>
+#include <cstdlib>
+#include <commons.h>
+
+#include <experimental/algorithm>
+#include <sycl/execution_policy>
+
+// Unnamed/annonymous namespace
+// Internal linkage - linker guarantees that the variables inside the namespace
+// are not leaked to other translation units
+namespace {
+    sycl::sycl_execution_policy<class render_depth> render_depth_par{};
+}
 
 void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane) {
     float rangeScale = 1 / (farPlane - nearPlane);
 
-    std::vector<int> rows = iota(depthSize.y);
-    std::vector<int> cols = iota(depthSize.x);
+    for (uint y=0; y<depthSize.y; y++) {
+        int offset = y*depthSize.x;
+        auto input_start = depth.begin() + offset;
+        auto input_end = depth.begin() + offset + depthSize.x;
+        auto output_start = out.begin() + offset;
 
-    //     // auto input_start = depth.begin() + offset - 1;
-    //     // auto input_end = depth.begin() + offset + depthSize.x - 1;
-    //     // auto output_start = out.begin() + offset - 1;
+        std::experimental::parallel::transform(render_depth_par, input_start, input_end, output_start, [=](float depthValue) {
+        //std::transform(input_start, input_end, output_start, [=](float depthValue) {
+            if (depthValue < nearPlane) { return make_uchar4(255, 255, 255, 0); }
+            if (depthValue > farPlane)  { return make_uchar4(0, 0, 0, 0); }
 
-    //     // std::experimental::parallel::transform(par, input_start, input_end, output_start, [=](float depthValue) {
-    //     //     if (depthValue < nearPlane) { return make_uchar4(255, 255, 255, 0); }
-    //     //     if (depthValue > farPlane)  { return make_uchar4(0, 0, 0, 0); }
-
-    //     //     const float d = (depthValue - nearPlane) * rangeScale;
-    //     //     return gs2rgb(d);
-    //     // });
-
-    // Map
-    //for (uint y=0; y<depthSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
-
-        //for (uint x=0; x<depthSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
-            uint pos = x + y*depthSize.x;
-
-            if (depth[pos] < nearPlane) {
-                // The forth value is a padding in order to align memory
-                out[pos] = make_uchar4(255, 255, 255, 0);
-            } else {
-                if (depth[pos] > farPlane) {
-                    out[pos] = make_uchar4(0, 0, 0, 0);
-                } else {
-                    const float d = (depth[pos] - nearPlane) * rangeScale;
-                    out[pos] = gs2rgb(d);
-                }
-            }
+            const float d = (depthValue - nearPlane) * rangeScale;
+            return gs2rgb(d);
         });
-    });
+    }
+    
+    // for (uint y=0; y<depthSize.y; y++) {
+    //     for (uint x=0; x<depthSize.x; x++) {
+
+    //         uint pos = x + y*depthSize.x;
+
+    //         if (depth[pos] < nearPlane) {
+    //             // The forth value is a padding in order to align memory
+    //             out[pos] = make_uchar4(255, 255, 255, 0);
+    //         } else {
+    //             if (depth[pos] > farPlane) {
+    //                 out[pos] = make_uchar4(0, 0, 0, 0);
+    //             } else {
+    //                 const float d = (depth[pos] - nearPlane) * rangeScale;
+    //                 out[pos] = gs2rgb(d);
+    //             }
+    //         }
+    //     };
+    // };
 }
 
-void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 outSize) {
-
-    std::vector<int> rows = iota(outSize.y);
-    std::vector<int> cols = iota(outSize.x);
+void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> data, uint2 outSize) {
 
     // Map
-    //for (uint y=0; y<outSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
+    for (uint y=0; y<outSize.y; y++) {
 
-        //for (uint x=0; x<outSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
+        for (uint x=0; x<outSize.x; x++) {
+
             uint pos = x + y*outSize.x;
 
             switch (data[pos].result) {
@@ -77,14 +83,13 @@ void renderTrackKernel(uchar4* out, const std::vector<TrackData> data, uint2 out
                 out[pos] = make_uchar4(255, 128, 128, 0);
                 break;
             }
-        });
-        //}
-    });
+        };
+    };
 }
 
 // Exactly the same as a raycast
 // Output is a color
-void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
+void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Volume volume,
         const Matrix4 view, const float nearPlane, const float farPlane,
         const float step, const float largestep, const float3 light,
         const float3 ambient) {
