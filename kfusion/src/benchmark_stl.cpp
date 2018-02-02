@@ -99,7 +99,8 @@ int main(int argc, char ** argv) {
 	//  =========  BASIC BUFFERS  (input / output )  =========
 
 	// Construction Scene reader and input buffer
-	uint16_t* inputDepth = (uint16_t*) malloc(sizeof(uint16_t) * inputSize.x * inputSize.y);
+	//uint16_t* inputDepth = (uint16_t*) malloc(sizeof(uint16_t) * inputSize.x * inputSize.y);
+	std::vector<uint16_t> inputDepth(inputSize.x * inputSize.y);
 
 	//uchar4* depthRender  = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
 	//uchar4* trackRender  = (uchar4*) malloc(sizeof(uchar4) * computationSize.x * computationSize.y);
@@ -177,7 +178,7 @@ int main(int argc, char ** argv) {
 
 	//  =========  FREE BASIC BUFFERS  =========
 
-	free(inputDepth);
+	//free(inputDepth);
 	//free(depthRender);
 	//free(trackRender);
 	//free(volumeRender);

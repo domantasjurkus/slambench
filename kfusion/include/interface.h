@@ -29,12 +29,13 @@ class DepthReader {
 public:
 	virtual ~DepthReader() {
 	}
-	virtual bool readNextDepthFrame(float * depthMap)= 0;
+	virtual bool readNextDepthFrame(float * depthMap) = 0;
 	inline bool readNextDepthFrame(unsigned short int * UintdepthMap) {
 		return readNextDepthFrame(NULL, UintdepthMap);
 	}
-	virtual bool readNextDepthFrame(uchar3* raw_rgb,
-			unsigned short int * depthMap) = 0;
+	virtual bool readNextDepthFrame(std::vector<unsigned short int> &UintdepthMap) = 0;
+	virtual bool readNextDepthFrame(uchar3* raw_rgb, unsigned short int * depthMap) = 0;
+
 	virtual float4 getK() = 0;
 	virtual uint2 getinputSize() = 0;
 	virtual void restart()=0;
@@ -143,8 +144,6 @@ public:
 	}
 
 	inline bool readNextDepthFrame(uchar3*, unsigned short int * depthMap) {
-
-
 		bool res = readNextDepthFrame(FloatdepthMap);
 
 		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
@@ -152,8 +151,18 @@ public:
 		}
 
 		return res;
-
 	}
+
+	inline bool readNextDepthFrame(std::vector<unsigned short int> &UintdepthMapVector) {
+		bool res = readNextDepthFrame(FloatdepthMap);
+
+		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
+			UintdepthMapVector[i] = FloatdepthMap[i] * 1000.0f;
+		}
+
+		return res;
+	}
+
 	inline bool readNextDepthFrame(float * depthMap) {
 
 		std::ostringstream filename;
@@ -299,11 +308,19 @@ public:
 	}
 
 	inline bool readNextDepthFrame(float * depthMap) {
-
 		bool res = readNextDepthFrame(NULL, UintdepthMap);
 
 		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
 			depthMap[i] = (float) UintdepthMap[i] / 1000.0f;
+		}
+		return res;
+	}
+
+	inline bool readNextDepthFrame(std::vector<unsigned short int> &UintdepthMapVector) {
+		bool res = readNextDepthFrame(NULL, UintdepthMap);
+
+		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
+			UintdepthMapVector[i] = (float) UintdepthMap[i] / 1000.0f;
 		}
 		return res;
 	}
