@@ -7,14 +7,9 @@
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
 
-    std::vector<int> rows = iota(outSize.y);
-    std::vector<int> cols = iota(outSize.x);
-
-    //for (uint y=0; y<outSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
-
-        //for (uint x=0; x<outSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
+    for (uint y=0; y<outSize.y; y++) {
+        for (uint x=0; x<outSize.x; x++) {
+            
             uint2 pixel = make_uint2(x,y);
             const uint2 centerPixel = pixel*2;
 
@@ -36,53 +31,31 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             });
             
             out[pixel.x + pixel.y*outSize.x] = t/sum;
-        });
-    });
+        };
+    };
 }
 
 void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
 
-    std::vector<int> rows = iota(imageSize.y);
-    std::vector<int> cols = iota(imageSize.x);
-
-    //for (uint y=0; y<imageSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
-
+    for (uint y=0; y<imageSize.y; y++) {
         int offset = y*imageSize.x;
 
         // Can't do a transform since we need x coordinate in rotate()
-        // auto left  = vertex.begin() + imageSize.x * y;
-        // auto right = vertex.begin() + imageSize.x * (y+1) - 1;
-
-        // When doing a transform on a range, you can only see the depth values, not the x coordinate
-        // vertex[x + offset] = std::transform(left, right, [=](int ptr) {
-        //     if (depth[ptr] > 0) {
-        //          return depth[x + offset] * rotate(invK, make_float3(x,y,1.f));
-        //     }
-        //     return vertex[x + offset] = make_float3(0);
-        // });
-
-        //for (uint x=0; x<imageSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
+        for (uint x=0; x<imageSize.x; x++) {
             if (depth[x + offset] > 0) {
                 vertex[x + offset] = depth[x + offset] * rotate(invK, make_float3(x,y,1.f));
             } else {
                 vertex[x + offset] = make_float3(0);
             }
-        });
-    });
+        };
+    };
 }
 
 void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
 
-    std::vector<int> rows = iota(imageSize.y);
-    std::vector<int> cols = iota(imageSize.x);
+    for (uint y=0; y<imageSize.y; y++) {
+        for (uint x=0; x<imageSize.x; x++) {
 
-    //for (uint y=0; y<imageSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
-
-        //for (uint x=0; x<imageSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
 			const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
 			const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
 			const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
@@ -101,8 +74,8 @@ void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in,
 			const float3 dxv = right - left;
 			const float3 dyv = down - up;
 			out[x + y*imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
-		});
-	});
+		};
+	};
 }
 
 // TrackData includes the errors (how far I am to the pixel in front of me)
@@ -112,37 +85,25 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
         const Matrix4 view, const float dist_threshold,
         const float normal_threshold) {
 
-    uint2 pixel = make_uint2(0, 0);
-    //uint pixely, pixelx;
+    for (uint pixely=0; pixely<inSize.y; pixely++) {
+        for (uint pixelx=0; pixelx<inSize.x; pixelx++) {
 
-    std::vector<int> rows = iota(inSize.y);
-    std::vector<int> cols = iota(inSize.x);
-
-    //for (pixely=0; pixely<inSize.y; pixely++) {
-    std::for_each(rows.begin(), rows.end(), [&](int pixely) {
-        
-        //for (pixelx=0; pixelx<inSize.x; pixelx++) {
-        std::for_each(cols.begin(), cols.end(), [&](int pixelx) {
-            pixel.x = pixelx;
-            pixel.y = pixely;
-
-            TrackData &row = output[pixel.x + pixel.y*refSize.x];
+            TrackData &row = output[pixelx + pixely*refSize.x];
 
             // If the input normal is invalid
-            if (inNormal[pixel.x + pixel.y*inSize.x].x == KFUSION_INVALID) {
+            if (inNormal[pixelx + pixely*inSize.x].x == KFUSION_INVALID) {
                 row.result = -1;
-                return;
+                continue;
             }
 
             // If the projected pixel is out of the frame
-            const float3 projectedVertex = Ttrack * inVertex[pixel.x + pixel.y*inSize.x];
+            const float3 projectedVertex = Ttrack * inVertex[pixelx + pixely*inSize.x];
             const float3 projectedPos = view * projectedVertex;
             const float2 projPixel = make_float2(projectedPos.x / projectedPos.z + 0.5f,
                                                  projectedPos.y / projectedPos.z + 0.5f);
-            if (projPixel.x < 0 || projPixel.x > refSize.x - 1
-                    || projPixel.y < 0 || projPixel.y > refSize.y - 1) {
+            if (projPixel.x < 0 || projPixel.x > refSize.x - 1 || projPixel.y < 0 || projPixel.y > refSize.y - 1) {
                 row.result = -2;
-                return;
+                continue;
             }
 
             const uint2 refPixel = make_uint2(projPixel.x, projPixel.y);
@@ -151,29 +112,29 @@ void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVer
             // If the reference normal is invalid
             if (referenceNormal.x == KFUSION_INVALID) {
                 row.result = -3;
-                return;
+                continue;
             }
 
             const float3 diff = refVertex[refPixel.x + refPixel.y*refSize.x] - projectedVertex;
-            const float3 projectedNormal = rotate(Ttrack, inNormal[pixel.x + pixel.y * inSize.x]);
+            const float3 projectedNormal = rotate(Ttrack, inNormal[pixelx + pixely * inSize.x]);
 
             // If the coordinate difference is beyond a threshold (outlier)
             if (length(diff) > dist_threshold) {
                 row.result = -4;
-                return;
+                continue;
             }
 
             // If the normal product is below a threshold
             if (dot(projectedNormal, referenceNormal) < normal_threshold) {
                 row.result = -5;
-                return;
+                continue;
             }
             row.result = 1;
             row.error = dot(referenceNormal, diff);
             ((float3 *) row.J)[0] = referenceNormal;
             ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
-        });
-    });
+        };
+    };
 }
 
 // Associativity? (acc and row are of different operators)

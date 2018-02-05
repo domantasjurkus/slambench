@@ -8,15 +8,8 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
     const Volume integration, const Matrix4 view, const float nearPlane,
     const float farPlane, const float step, const float largestep) {
 
-    std::vector<int> rows = iota(inputSize.y);
-    std::vector<int> cols = iota(inputSize.x);
-
-    //for (uint y=0; y<inputSize.y; y++) {
-    std::for_each(rows.begin(), rows.end(), [&](int y) {
-        
-        //for (uint x=0; x<inputSize.x; x++) {
-        std::for_each(cols.begin(), cols.end(), [&](int x) {
-
+    for (uint y=0; y<inputSize.y; y++) {
+        for (uint x=0; x<inputSize.x; x++) {
             uint2 pos = make_uint2(x, y);
 
             // view = used for camera transformation
@@ -35,6 +28,6 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
                 vertex[pos.x + pos.y*inputSize.x] = make_float3(0);
                 normal[pos.x + pos.y*inputSize.x] = make_float3(KFUSION_INVALID, 0, 0);
             }
-        });
-    });
+        };
+    };
 }
