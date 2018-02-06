@@ -4,15 +4,12 @@
 #include <cstdlib>
 #include <commons.h>
 
-// Since most of these functions are only used in a single CPP file,
-// we don't need most of these headers
-
 ////////////////////////// COMPUTATION KERNELS PROTOTYPES //////////////////////
 
 void initVolumeKernel(Volume volume);
 
-//void mm2metersKernel(std::vector<float> &out, uint2 outSize, const std::vector<ushort> in, uint2 inSize);
-void mm2metersKernel(std::vector<float> &out, uint2 outSize, const ushort * in, uint2 inSize);
+void mm2metersKernel(std::vector<float> &out, uint2 outSize, const std::vector<ushort> in, uint2 inSize);
+//void mm2metersKernel(std::vector<float> &out, uint2 outSize, const uint16_t *in, uint2 inSize);
 
 void bilateralFilterKernel(std::vector<float> &out, const std::vector<float> in, uint2 inSize, const std::vector<float> gaussian, float e_d, int r);
 //void bilateralFilterKernel(float* out, const float* in, uint2 inSize, const float * gaussian, float e_d, int r);

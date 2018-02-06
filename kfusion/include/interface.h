@@ -33,7 +33,11 @@ public:
 	inline bool readNextDepthFrame(unsigned short int * UintdepthMap) {
 		return readNextDepthFrame(NULL, UintdepthMap);
 	}
-	virtual bool readNextDepthFrame(std::vector<unsigned short int> &UintdepthMap) = 0;
+	inline bool readNextDepthFrame(std::vector<uint16_t> &UintdepthMap) {
+		return readNextDepthFrameVector(UintdepthMap);
+	}
+
+	virtual bool readNextDepthFrameVector(std::vector<unsigned short int> &UintdepthMap) = 0;
 	virtual bool readNextDepthFrame(uchar3* raw_rgb, unsigned short int * depthMap) = 0;
 
 	virtual float4 getK() = 0;
@@ -161,6 +165,11 @@ public:
 		}
 
 		return res;
+	}
+
+	inline bool readNextDepthFrameVector(std::vector<uint16_t> &UintdepthMapVector) {
+		// Added to match interface
+		// SceneDepthReader only deals with floating point values
 	}
 
 	inline bool readNextDepthFrame(float * depthMap) {
@@ -316,11 +325,11 @@ public:
 		return res;
 	}
 
-	inline bool readNextDepthFrame(std::vector<unsigned short int> &UintdepthMapVector) {
+	inline bool readNextDepthFrameVector(std::vector<uint16_t> &UintdepthMapVector) {
 		bool res = readNextDepthFrame(NULL, UintdepthMap);
 
 		for (unsigned int i = 0; i < _size.x * _size.y; i++) {
-			UintdepthMapVector[i] = (float) UintdepthMap[i] / 1000.0f;
+			UintdepthMapVector[i] = UintdepthMap[i];
 		}
 		return res;
 	}

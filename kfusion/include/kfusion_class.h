@@ -84,11 +84,16 @@ public:
 	}
 
 	bool preprocessing(const ushort *inputDepth, const uint2 inputSize);
-	//bool preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize);
+	bool preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize);
 	
 	void computeFrame(const ushort *inputDepth, const uint2 inputSize,
 			float4 k, uint integration_rate, uint tracking_rate,
 			float icp_threshold, float mu, const uint frame);
+
+	// Unused
+	/*void computeFrame(const std::vector<ushort> inputDepth, const uint2 inputSize,
+		float4 k, uint integration_rate, uint tracking_rate,
+		float icp_threshold, float mu, const uint frame);*/
 
 	bool tracking(float4 k, float icp_threshold, uint tracking_rate, uint frame);
 	bool raycasting(float4 k, float mu, uint frame);
