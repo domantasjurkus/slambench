@@ -2,8 +2,7 @@
 #include <kfusion_class.h>
 
 #include <sycl/execution_policy>
-
-//sycl::sycl_execution_policy<class render_depth> par_render_depth;
+#include <range/v3/all.hpp>
 
 inline double tock() {
 	synchroniseDevices();
@@ -53,12 +52,7 @@ std::vector<std::vector<float3>> inputNormal;
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
 	reductionoutput.resize(8*32);
-	//reductionoutput = (float*) calloc(sizeof(float) * 8 * 32, 1);
-
 	scaledDepthVector.resize(iterations.size());
-	//ScaledDepth = (float**)  calloc(sizeof(float*)  * iterations.size(), 1);
-	//inputVertex = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
-	//inputNormal = (float3**) calloc(sizeof(float3*) * iterations.size(), 1);
 
 	inputVertex.resize(iterations.size());
 	inputNormal.resize(iterations.size());
@@ -67,26 +61,20 @@ void Kfusion::languageSpecificConstructor() {
 		scaledDepthVector[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 		inputVertex[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 		inputNormal[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
-		//ScaledDepth[i] = (float*) calloc(sizeof(float) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-		//inputVertex[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
-		//inputNormal[i] = (float3*) calloc(sizeof(float3) * (computationSize.x * computationSize.y) / (int) pow(2, i), 1);
 	}
 
 	floatDepthVector.resize(computationSize.x * computationSize.y);
-	//floatDepth = (float*) calloc(sizeof(float) * computationSize.x * computationSize.y, 1);
 
 	vertex.resize(computationSize.x * computationSize.y);
 	normal.resize(computationSize.x * computationSize.y);
-	//vertex = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
-	//normal = (float3*) calloc(sizeof(float3) * computationSize.x * computationSize.y, 1);
 
 	trackingResult.resize(computationSize.x * computationSize.y);
-	//trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
 
 	// ********* BEGIN : Generate the gaussian *************
 	gaussian.resize(radius*2 + 1);
 	std::iota(gaussian.begin(), gaussian.end(), 0);
-	std::transform(gaussian.begin(), gaussian.end(), gaussian.begin(),[](float i) {
+
+	ranges::transform(gaussian, gaussian.begin(), [](float i) {
 		return expf(-((i-2) * (i-2)) / (2 * delta * delta));
 	});
 
