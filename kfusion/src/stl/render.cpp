@@ -75,7 +75,6 @@ void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> dat
 }
 
 // Exactly the same as a raycast
-// Output is a color
 void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Volume volume,
         const Matrix4 view, const float nearPlane, const float farPlane,
         const float step, const float largestep, const float3 light,
@@ -87,6 +86,9 @@ void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Vo
         auto input_end = out.begin() + offset + depthSize.x;
         auto output_start = out.begin() + offset;*/
 
+        //
+        // Cannot std::transform due to the need for x?
+        //
         //std::experimental::parallel::transform(render_track_par, input_start, input_end, output_start, [](TrackData td) {
         /*std::transform(input_start, input_end, output_start, [=](uchar4 unused) {
 

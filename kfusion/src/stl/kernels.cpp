@@ -104,21 +104,6 @@ void Kfusion::languageSpecificConstructor() {
 }
 
 Kfusion::~Kfusion() {
-	//free(floatDepth);
-	//free(trackingResult);
-	//free(reductionoutput);
-	/*for (unsigned int i=0; i<iterations.size(); ++i) {
-		//free(ScaledDepth[i]);
-		//free(inputVertex[i]);
-		//free(inputNormal[i]);
-	}*/
-	//free(ScaledDepth);
-	//free(inputVertex);
-	//free(inputNormal);
-
-	//free(vertex);
-	//free(normal);
-	//free(gaussian);
 
 	volume.release();
 }
