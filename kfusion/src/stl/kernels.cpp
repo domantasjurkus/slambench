@@ -84,9 +84,11 @@ void Kfusion::languageSpecificConstructor() {
 	//trackingResult = (TrackData*) calloc(sizeof(TrackData) * computationSize.x * computationSize.y, 1);
 
 	// ********* BEGIN : Generate the gaussian *************
-	size_t gaussianS = radius*2 + 1;
-	gaussian.resize(gaussianS);
-	//gaussian = (float*) calloc(gaussianS * sizeof(float), 1);
+	gaussian.resize(radius*2 + 1);
+	std::iota(gaussian.begin(), gaussian.end(), 0);
+	std::transform(gaussian.begin(), gaussian.end(), gaussian.begin(),[](float i) {
+		return expf(-((i-2) * (i-2)) / (2 * delta * delta));
+	});
 
 	// This is another way of generating a gaussian, but it looks more complicated than it has to be
 	// std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
@@ -94,9 +96,11 @@ void Kfusion::languageSpecificConstructor() {
 	// 	i++;
 	// 	return expf(-(x*x) / (2*delta*delta));
 	// });
-	for (auto i=0; i<gaussianS; i++) {
+
+	// Original
+	/*for (auto i=0; i<gaussianS; i++) {
 		gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
-	}
+	}*/
 	// ********* END : Generate the gaussian *************
 
 	volume.init(volumeResolution, volumeDimensions);
