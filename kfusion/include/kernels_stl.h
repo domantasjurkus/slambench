@@ -20,10 +20,16 @@ void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> de
 void reduceKernel(std::vector<float> &out, std::vector<TrackData> trackData, const uint2 Jsize, const uint2 out_size);
 //void reduceKernel(float * out, TrackData* J, const uint2 Jsize, const uint2 size);
 
-void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVertex,
-		const std::vector<float3> inNormal, uint2 inSize, const float3* refVertex,
-		const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
-		const Matrix4 view, const float dist_threshold,
+void trackKernel(std::vector<TrackData> &output,
+		const std::vector<float3> inVertex,
+		const std::vector<float3> inNormal,
+		uint2 inSize,
+		const float3* refVertex,
+		const float3* refNormal,
+		uint2 refSize,
+		const Matrix4 Ttrack,
+		const Matrix4 view,
+		const float dist_threshold,
 		const float normal_threshold);
 /*void trackKernel(TrackData* output, const std::vector<float3> inVertex,
 		const std::vector<float3> inNormal, uint2 inSize, const float3* refVertex,

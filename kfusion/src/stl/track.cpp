@@ -2,10 +2,38 @@
 
 //#include <experimental/algorithm>
 //#include <sycl/execution_policy>
-//#include <experimental/numeric>
 
 void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in, uint2 inSize, const float e_d, const int r) {
     uint2 outSize = make_uint2(inSize.x/2, inSize.y/2);
+
+    // Much slower
+    //std::vector<uint> pixels(outSize.x*outSize.y);
+    //std::iota(pixels.begin(), pixels.end(), 0);
+    /*std::for_each(pixels.begin(), pixels.end(), [&](uint pos) {
+        uint x = pos % outSize.x;
+        uint y = pos / outSize.x;
+
+        uint2 pixel = make_uint2(x,y);
+        const uint2 centerPixel = pixel*2;
+
+        float sum = 0.0f;
+        float t = 0.0f;
+        const float center = in[centerPixel.x + centerPixel.y*inSize.x];
+
+        std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
+        
+        std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
+            uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
+                                            make_int2(outSize.x*2-1, outSize.y*2-1)));
+            float current = in[cur.x + cur.y*inSize.x];
+            if (fabsf(current - center) < e_d) {
+                sum += 1.0f;
+                t += current;
+            }
+        });
+        
+        out[pixel.x + pixel.y*outSize.x] = t/sum;
+    });*/
 
     for (uint y=0; y<outSize.y; y++) {
         for (uint x=0; x<outSize.x; x++) {
@@ -19,7 +47,6 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
 
             std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
             
-            // Stencil
             std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
                 uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
                                              make_int2(outSize.x*2-1, outSize.y*2-1)));
@@ -31,13 +58,23 @@ void halfSampleRobustImageKernel(std::vector<float> &out, std::vector<float> in,
             });
             
             out[pixel.x + pixel.y*outSize.x] = t/sum;
-        };
-    };
+        }
+    }
 }
 
 void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> depth, uint2 imageSize, const Matrix4 invK) {
 
-    for (uint y=0; y<imageSize.y; y++) {
+    std::vector<uint> pixels(imageSize.x*imageSize.y);
+    std::iota(pixels.begin(), pixels.end(), 0);
+
+    std::transform(depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
+        uint x = pos % imageSize.x;
+        uint y = pos / imageSize.x;
+
+        return (d>0) ? d * rotate(invK, make_float3(x,y,1.0f)) : make_float3(0);
+    });
+
+    /*for (uint y=0; y<imageSize.y; y++) {
         int offset = y*imageSize.x;
 
         // Can't do a transform since we need x coordinate in rotate()
@@ -48,11 +85,39 @@ void depth2vertexKernel(std::vector<float3> &vertex, const std::vector<float> de
                 vertex[x + offset] = make_float3(0);
             }
         };
-    };
+    };*/
 }
 
 void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
 
+    // Segfault
+    /*std::vector<uint> pixels(imageSize.x*imageSize.y);
+    std::iota(pixels.begin(), pixels.end(), 0);
+    std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
+        uint x = pos % imageSize.x;
+        uint y = pos / imageSize.x;
+
+        const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
+        const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
+        const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
+        const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
+
+        //std::cout << pleft.x << " " << pright.x  << " " << pup.y << " " << pdown.y << std::endl;
+
+        const float3 left  = in[pleft.x + imageSize.x * pleft.y];
+        const float3 right = in[pright.x + imageSize.x * pright.y];
+        const float3 up    = in[pup.x + imageSize.x * pup.y];
+        const float3 down  = in[pdown.x + imageSize.x * pdown.y];
+
+        if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
+            return make_float3(KFUSION_INVALID, 0.0f, 0.0f);
+        }
+        const float3 dxv = right - left;
+        const float3 dyv = down - up;
+        return normalize(cross(dyv, dxv));
+    });*/
+
+    // Stencil
     for (uint y=0; y<imageSize.y; y++) {
         for (uint x=0; x<imageSize.x; x++) {
 
@@ -61,29 +126,36 @@ void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in,
 			const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
 			const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
 
-            // Stencil
 			const float3 left  = in[pleft.x + imageSize.x * pleft.y];
 			const float3 right = in[pright.x + imageSize.x * pright.y];
 			const float3 up    = in[pup.x + imageSize.x * pup.y];
 			const float3 down  = in[pdown.x + imageSize.x * pdown.y];
 
 			if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
-				out[x + y * imageSize.x].x = KFUSION_INVALID;
+				out[x + y*imageSize.x].x = KFUSION_INVALID;
 				return;
 			}
 			const float3 dxv = right - left;
 			const float3 dyv = down - up;
-			out[x + y*imageSize.x] = normalize(cross(dyv, dxv)); // switched dx and dy to get factor -1
+			out[x + y*imageSize.x] = normalize(cross(dyv, dxv));
 		};
 	};
 }
 
 // TrackData includes the errors (how far I am to the pixel in front of me)
-void trackKernel(std::vector<TrackData> &output, const std::vector<float3> inVertex,
-        const std::vector<float3> inNormal, uint2 inSize, const float3* refVertex,
-        const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
-        const Matrix4 view, const float dist_threshold,
+void trackKernel(std::vector<TrackData> &output,
+        const std::vector<float3> inVertex,
+        const std::vector<float3> inNormal,
+        uint2 inSize,
+        const float3* refVertex,
+        const float3* refNormal,
+        uint2 refSize,
+        const Matrix4 Ttrack,
+        const Matrix4 view,
+        const float dist_threshold,
         const float normal_threshold) {
+
+    // std::transform with two inputs, inVertex and inNormal
 
     for (uint pixely=0; pixely<inSize.y; pixely++) {
         for (uint pixelx=0; pixelx<inSize.x; pixelx++) {

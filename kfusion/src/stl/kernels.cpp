@@ -72,8 +72,8 @@ void Kfusion::languageSpecificConstructor() {
 
 	// ********* BEGIN : Generate the gaussian *************
 	gaussian.resize(radius*2 + 1);
+	
 	std::iota(gaussian.begin(), gaussian.end(), 0);
-
 	ranges::transform(gaussian, gaussian.begin(), [](float i) {
 		return expf(-((i-2) * (i-2)) / (2 * delta * delta));
 	});
@@ -166,7 +166,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 	// prepare the 3D information from the input depth maps
 	uint2 localimagesize = computationSize;
 
-	for (unsigned int i=0; i<iterations.size(); ++i) {
+	for (uint i=0; i<iterations.size(); ++i) {
 		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
 		depth2vertexKernel(inputVertex[i], scaledDepthVector[i], localimagesize, invK);
 		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);

@@ -53,6 +53,9 @@ void renderVolumeKernel(std::vector<uchar4> out,
         const float3 light,
         const float3 ambient) {
 
+    // do std::iota, then parallel transform
+    // in the future, std::iota will not me instantiated in memory
+
     for (uint y=0; y<depthSize.y; y++) {
         /*int offset = y*depthSize.x;
         auto input_start = out.begin() + offset;

@@ -10,12 +10,23 @@ void integrateKernel(Volume vol, const std::vector<float> depth, uint2 depthSize
 	const float3 delta = rotate(invTrack, make_float3(0, 0, vol.dim.z / vol.size.z));
 	const float3 cameraDelta = rotate(K, delta);
 
+	
+	// loop through vol.size.x*vol.size*y
 	for (uint y=0; y<vol.size.y; y++) {
 
 		//
 		// Cannot transform since it would mutate vol?
 		//
 		for (uint x=0; x<vol.size.x; x++) {
+
+
+			/*for (uint point = 0; point < vol.size.y * vol.size.x; point++) {
+				uint x = point % .. / ;
+				uint y = .... ;
+
+				uint3 pix ...
+				....
+			}*/
 
 			uint3 pix = make_uint3(x, y, 0); //pix.x = x;pix.y = y;
 			float3 pos = invTrack * vol.pos(pix);
