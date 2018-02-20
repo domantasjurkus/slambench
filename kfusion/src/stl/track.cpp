@@ -1,12 +1,12 @@
 #include <kernels_stl.h>
 
-#include <experimental/algorithm>
-#include <sycl/execution_policy>
+//#include <experimental/algorithm>
+//#include <sycl/execution_policy>
 
-namespace {
+/*namespace {
     sycl::sycl_execution_policy<class half_sample> half_sample_par;
     sycl::sycl_execution_policy<class track_kernel> track_kernel_par;
-}
+}*/
 
 void halfSampleRobustImageKernel(std::vector<float> &out,
         std::vector<float> in,
@@ -29,7 +29,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
 
         float sum = 0.0f;
         float t = 0.0f;
-        // in - static access pattern
+        // in - static tdess pattern
         const float center = in[centerPixel.x + centerPixel.y*inSize.x];
 
         std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
@@ -165,8 +165,8 @@ void trackKernel(std::vector<TrackData> &output,
         const std::vector<float3> inVertex,
         const std::vector<float3> inNormal,
         uint2 inSize,
-        const float3* refVertex,
-        const float3* refNormal,
+        const std::vector<float3> refVertex,
+        const std::vector<float3> refNormal,
         uint2 refSize,
         const Matrix4 Ttrack,
         const Matrix4 view,
@@ -196,7 +196,7 @@ void trackKernel(std::vector<TrackData> &output,
         const float3 projectedVertex = Ttrack * inVertex[x + y*inSize.x];
         const float3 projectedPos = view * projectedVertex;
         const float2 projPixel = make_float2(projectedPos.x / projectedPos.z + 0.5f,
-                                                projectedPos.y / projectedPos.z + 0.5f);
+                                             projectedPos.y / projectedPos.z + 0.5f);
         if (projPixel.x<0 || projPixel.x>refSize.x-1 || projPixel.y<0 || projPixel.y>refSize.y-1) {
             row.result = -2;
             //continue;
@@ -230,6 +230,7 @@ void trackKernel(std::vector<TrackData> &output,
             return row;
         }
         row.result = 1;
+        
         row.error = dot(referenceNormal, diff);
         ((float3 *) row.J)[0] = referenceNormal;
         ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
@@ -239,84 +240,57 @@ void trackKernel(std::vector<TrackData> &output,
     });
 }
 
-void reduce_single_pixel(std::vector<float> &acc, TrackData row) {
-    if (row.result<1) {
-        acc[29] += row.result == -4 ? 1 : 0;
-        acc[30] += row.result == -5 ? 1 : 0;
-        acc[31] += row.result > -4 ? 1 : 0;
-        return;
-    }
-    acc[0] += row.error * row.error;
-    acc[1] += row.error * row.J[0];
-    acc[2] += row.error * row.J[1];
-    acc[3] += row.error * row.J[2];
-    acc[4] += row.error * row.J[3];
-    acc[5] += row.error * row.J[4];
-    acc[6] += row.error * row.J[5];
-    acc[7] += row.J[0] * row.J[0];
-    acc[8] += row.J[0] * row.J[1];
-    acc[9] += row.J[0] * row.J[2];
-    acc[10] += row.J[0] * row.J[3];
-    acc[11] += row.J[0] * row.J[4];
-    acc[12] += row.J[0] * row.J[5];
-    acc[13] += row.J[1] * row.J[1];
-    acc[14] += row.J[1] * row.J[2];
-    acc[15] += row.J[1] * row.J[3];
-    acc[16] += row.J[1] * row.J[4];
-    acc[17] += row.J[1] * row.J[5];
-    acc[18] += row.J[2] * row.J[2];
-    acc[19] += row.J[2] * row.J[3];
-    acc[20] += row.J[2] * row.J[4];
-    acc[21] += row.J[2] * row.J[5];
-    acc[22] += row.J[3] * row.J[3];
-    acc[23] += row.J[3] * row.J[4];
-    acc[24] += row.J[3] * row.J[5];
-    acc[25] += row.J[4] * row.J[4];
-    acc[26] += row.J[4] * row.J[5];
-    acc[27] += row.J[5] * row.J[5];
-    acc[28] += 1;
-};
-
-// Previous workaround
-/*struct reduce_single_row {
-    template <typename T>
-    T operator()(T &acc, TrackData row) const {
-        
-        sums[0] += row.error * row.error;
-        sums[1] += row.error * row.J[0];
-        sums[2] += row.error * row.J[1];
-        ...
-        sums[28] += 1; // extra info here (sums+28)[0]
-        return sums;
-    };
-};*/
-
 void new_reduce(std::vector<float> &out,
         std::vector<TrackData> trackData,   // size 19200
         const uint2 trackDataSize,          // 160x120
         const uint2 localimagesize) {       // 40x30
 
-    // trackData has 19200 element capacity, but only fills in 40x30 / 80x60 / 160x120 elements
-
     std::fill(out.begin(), out.end(), 0.0f);
 
-    std::vector<uint> pixels(localimagesize.x*localimagesize.y, 0);
-    std::vector<float> initial(32, 0);
-    std::vector<float> result(32, 0);
+    // No apparent way to std::accumulate into a vector<float>
 
-    result = std::accumulate(pixels.begin(), pixels.end(), initial, [=](std::vector<float> acc, uint pos) {
-        uint x = pos % localimagesize.x;
-        uint y = pos / localimagesize.x;
-
-        const TrackData &row = trackData[x + y*trackDataSize.x];
-        reduce_single_pixel(acc, row);
-        
-        return acc;
+    // This works
+    std::for_each(trackData.begin(), trackData.end(), [&](TrackData td) {
+        if (td.result<1) {
+            out[29] += td.result == -4 ? 1 : 0;
+            out[30] += td.result == -5 ? 1 : 0;
+            out[31] += td.result > -4 ? 1 : 0;
+            return;
+        }
+        out[0] += td.error * td.error;
+        out[1] += td.error * td.J[0];
+        out[2] += td.error * td.J[1];
+        out[3] += td.error * td.J[2];
+        out[4] += td.error * td.J[3];
+        out[5] += td.error * td.J[4];
+        out[6] += td.error * td.J[5];
+        out[7] += td.J[0] * td.J[0];
+        out[8] += td.J[0] * td.J[1];
+        out[9] += td.J[0] * td.J[2];
+        out[10] += td.J[0] * td.J[3];
+        out[11] += td.J[0] * td.J[4];
+        out[12] += td.J[0] * td.J[5];
+        out[13] += td.J[1] * td.J[1];
+        out[14] += td.J[1] * td.J[2];
+        out[15] += td.J[1] * td.J[3];
+        out[16] += td.J[1] * td.J[4];
+        out[17] += td.J[1] * td.J[5];
+        out[18] += td.J[2] * td.J[2];
+        out[19] += td.J[2] * td.J[3];
+        out[20] += td.J[2] * td.J[4];
+        out[21] += td.J[2] * td.J[5];
+        out[22] += td.J[3] * td.J[3];
+        out[23] += td.J[3] * td.J[4];
+        out[24] += td.J[3] * td.J[5];
+        out[25] += td.J[4] * td.J[4];
+        out[26] += td.J[4] * td.J[5];
+        out[27] += td.J[5] * td.J[5];
+        out[28] += 1;
     });
 
-    for (int i=0; i<result.size(); i++) {
-        out[i] = result[i];
-    }
+    /*for (int i=0; i<entry.size(); i++) {
+        out[i] = entry[i];
+    }*/
 }
 
 void reduceKernel(std::vector<float> &out,

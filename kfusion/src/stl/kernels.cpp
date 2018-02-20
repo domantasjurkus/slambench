@@ -21,33 +21,25 @@ inline double tock() {
 
 // input once
 std::vector<float> gaussian;
-//float *gaussian;
 
 // inter-frame
 Volume volume;
 
 std::vector<float3> vertex;
 std::vector<float3> normal;
-//float3 *vertex;
-//float3 *normal;
 
 // intra-frame
-std::vector<TrackData> trackingResult;
-//TrackData * trackingResult;
+//std::vector<TrackData> trackingResult;
+std::vector<std::vector<TrackData>> trackingResult;
 Matrix4 oldPose;
 Matrix4 raycastPose;
 std::vector<float> reductionoutput;
-//float* reductionoutput;
 
 std::vector<float> floatDepthVector;
 std::vector<std::vector<float>> scaledDepthVector;
-//float * floatDepth;
-//float ** ScaledDepth;
 
 std::vector<std::vector<float3>> inputVertex;
 std::vector<std::vector<float3>> inputNormal;
-//float3 ** inputVertex;
-//float3 ** inputNormal;
 
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
@@ -57,10 +49,14 @@ void Kfusion::languageSpecificConstructor() {
 	inputVertex.resize(iterations.size());
 	inputNormal.resize(iterations.size());
 
+	trackingResult.resize(iterations.size());
+
 	for (auto i=0; i<iterations.size(); ++i) {
 		scaledDepthVector[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 		inputVertex[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 		inputNormal[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
+
+		trackingResult[i].resize((computationSize.x * computationSize.y) / (int) pow(2, i));
 	}
 
 	floatDepthVector.resize(computationSize.x * computationSize.y);
@@ -68,13 +64,16 @@ void Kfusion::languageSpecificConstructor() {
 	vertex.resize(computationSize.x * computationSize.y);
 	normal.resize(computationSize.x * computationSize.y);
 
-	trackingResult.resize(computationSize.x * computationSize.y);
+	//trackingResult.resize(computationSize.x * computationSize.y);
 
 	// ********* BEGIN : Generate the gaussian *************
 	gaussian.resize(radius*2 + 1);
 	
-	std::iota(gaussian.begin(), gaussian.end(), 0);
-	ranges::transform(gaussian, gaussian.begin(), [](float i) {
+	//std::iota(gaussian.begin(), gaussian.end(), 0);
+
+	auto g = ranges::view::ints(0, radius*2+1);
+
+	ranges::transform(g, gaussian.begin(), [](float i) {
 		return expf(-((i-2) * (i-2)) / (2 * delta * delta));
 	});
 
@@ -119,7 +118,6 @@ void initVolumeKernel(Volume volume) {
 
 bool updatePoseKernel(Matrix4 & pose, const std::vector<float> output, float icp_threshold) {
 	bool res = false;
-	//TICK();
 	// Update the pose regarding the tracking result
 	TooN::Matrix<8, 32, const float, TooN::Reference::RowMajor> values(output.data());
 	TooN::Vector<6> x = solve(values[0].slice<1, 27>());
@@ -130,7 +128,6 @@ bool updatePoseKernel(Matrix4 & pose, const std::vector<float> output, float icp
 	if (norm(x) < icp_threshold)
 		res = true;
 
-	//TOCK("updatePoseKernel", 1);
 	return res;
 }
 
@@ -186,13 +183,13 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 			// both point clouds
 			// compute the error
 			double a = tock();
-			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
-						localimagesize, vertex.data(), normal.data(), computationSize, pose,
+			trackKernel(trackingResult[level], inputVertex[level], inputNormal[level],
+						localimagesize, vertex, normal, computationSize, pose,
 						projectReference, dist_threshold, normal_threshold);
 			double b = tock();
 					
 			// sum of the errors
-			reduceKernel(reductionoutput, trackingResult, computationSize, localimagesize);
+			reduceKernel(reductionoutput, trackingResult[level], computationSize, localimagesize);
 			
 			// correct for the errors
 			if (updatePoseKernel(pose, reductionoutput, icp_threshold)) {
@@ -208,9 +205,15 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 
 	if (frame > 2) {
 		raycastPose = pose;
-		raycastKernel(vertex.data(), normal.data(), computationSize, volume,
-				raycastPose * getInverseCameraMatrix(k), nearPlane, farPlane,
-				step, 0.75f * mu);
+		raycastKernel(vertex,
+				normal,
+				computationSize,
+				volume,
+				raycastPose * getInverseCameraMatrix(k),
+				nearPlane,
+				farPlane,
+				step,
+				0.75f*mu);
 	}
 
 	return doRaycast;
@@ -218,9 +221,8 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 
 bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame) {
 	bool doIntegrate = checkPoseKernel(pose, oldPose, reductionoutput, computationSize, track_threshold);
-
+	
 	if ((doIntegrate && ((frame % integration_rate) == 0)) || (frame <= 3)) {
-		// Commented out due to change from floatDepth to floatDepthVector
 		integrateKernel(volume, floatDepthVector, computationSize, inverse(pose), getCameraMatrix(k), mu, maxweight);
 		doIntegrate = true;
 	} else {
@@ -258,7 +260,7 @@ void Kfusion::renderDepth(std::vector<uchar4> out, uint2 outputSize) {
 }
 
 void Kfusion::renderTrack(std::vector<uchar4> out, uint2 outputSize) {
-	renderTrackKernel(out, trackingResult, outputSize);
+	renderTrackKernel(out, trackingResult[0], outputSize);
 }
 
 void Kfusion::renderVolume(std::vector<uchar4> out, uint2 outputSize, int frame, int raycast_rendering_rate, float4 k, float largestep) {

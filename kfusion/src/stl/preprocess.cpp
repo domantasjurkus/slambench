@@ -11,7 +11,11 @@ namespace {
     sycl::sycl_execution_policy<class bilateral_filter> bilateral_filter_par;
 }
 
-void mm2metersKernel(std::vector<float> &out, uint2 outSize, const std::vector<uint16_t> in, uint2 inSize) {
+void mm2metersKernel(std::vector<float> &out,
+        uint2 outSize,
+        const std::vector<uint16_t> in,
+        uint2 inSize) {
+            
     if ((inSize.x < outSize.x) || (inSize.y < outSize.y))           { std::cerr << "Invalid ratio." << std::endl; exit(1); }
     if ((inSize.x % outSize.x != 0) || (inSize.y % outSize.y != 0)) { std::cerr << "Invalid ratio." << std::endl; exit(1); }
     if ((inSize.x / outSize.x != inSize.y / outSize.y))             { std::cerr << "Invalid ratio." << std::endl; exit(1); }

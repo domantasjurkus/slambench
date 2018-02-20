@@ -2,8 +2,8 @@
 #include <cstdlib>
 #include <commons.h>
 
-#include <experimental/algorithm>
-#include <sycl/execution_policy>
+//#include <experimental/algorithm>
+//#include <sycl/execution_policy>
 
 // Unnamed/annonymous namespace
 // Internal linkage - linker guarantees that the variables inside the namespace

@@ -1,9 +1,12 @@
 #include <commons.h>
 
 // Mapping of a point in the 3D world to the camera plane
-// Method left here since it's used by both raycast.cpp and render.cpp
-float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
-		const float nearPlane, const float farPlane, const float step,
+float4 raycast(const Volume volume,
+		const uint2 pos,
+		const Matrix4 view,
+		const float nearPlane,
+		const float farPlane,
+		const float step,
 		const float largestep) {
 
 	const float3 origin = get_translation(view);

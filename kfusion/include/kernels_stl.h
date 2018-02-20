@@ -24,8 +24,8 @@ void trackKernel(std::vector<TrackData> &output,
 		const std::vector<float3> inVertex,
 		const std::vector<float3> inNormal,
 		uint2 inSize,
-		const float3* refVertex,
-		const float3* refNormal,
+		const std::vector<float3> refVertex,
+		const std::vector<float3> refNormal,
 		uint2 refSize,
 		const Matrix4 Ttrack,
 		const Matrix4 view,
@@ -53,7 +53,7 @@ void integrateKernel(Volume vol, const std::vector<float> depth, uint2 imageSize
 		const Matrix4 invTrack, const Matrix4 K, const float mu,
 		const float maxweight);
 
-void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
+void raycastKernel(std::vector<float3> &vertex, std::vector<float3> &normal, uint2 inputSize,
 		const Volume integration, const Matrix4 view, const float nearPlane,
 		const float farPlane, const float step, const float largestep);
 
