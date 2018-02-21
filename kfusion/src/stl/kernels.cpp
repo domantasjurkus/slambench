@@ -24,9 +24,9 @@ std::vector<float> gaussian;
 
 // inter-frame
 Volume volume;
-
-std::vector<float3> vertex;
-std::vector<float3> normal;
+//std::vector<float3> vertex;
+//std::vector<float3> normal;
+std::vector<std::pair<float3, float3>> vertex_normals;
 
 // intra-frame
 //std::vector<TrackData> trackingResult;
@@ -44,11 +44,11 @@ std::vector<std::vector<float3>> inputNormal;
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
 	reductionoutput.resize(8*32);
+	//reductionoutput.resize(32);
 	scaledDepthVector.resize(iterations.size());
 
 	inputVertex.resize(iterations.size());
 	inputNormal.resize(iterations.size());
-
 	trackingResult.resize(iterations.size());
 
 	for (auto i=0; i<iterations.size(); ++i) {
@@ -61,8 +61,14 @@ void Kfusion::languageSpecificConstructor() {
 
 	floatDepthVector.resize(computationSize.x * computationSize.y);
 
-	vertex.resize(computationSize.x * computationSize.y);
-	normal.resize(computationSize.x * computationSize.y);
+	//vertex.resize(computationSize.x * computationSize.y);
+	//normal.resize(computationSize.x * computationSize.y);
+
+	// How do I reserve space for this?
+	vertex_normals.resize(computationSize.x * computationSize.y);
+	/*for (int i=0; i<computationSize.x * computationSize.y; i++) {
+		vertex_normals[i].resize(1);
+	}*/
 
 	//trackingResult.resize(computationSize.x * computationSize.y);
 
@@ -183,9 +189,16 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 			// both point clouds
 			// compute the error
 			double a = tock();
-			trackKernel(trackingResult[level], inputVertex[level], inputNormal[level],
-						localimagesize, vertex, normal, computationSize, pose,
-						projectReference, dist_threshold, normal_threshold);
+			trackKernel(trackingResult[level],
+					inputVertex[level],
+					inputNormal[level],
+					localimagesize,
+					vertex_normals,
+					computationSize,
+					pose,
+					projectReference,
+					dist_threshold,
+					normal_threshold);
 			double b = tock();
 					
 			// sum of the errors
@@ -205,8 +218,7 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 
 	if (frame > 2) {
 		raycastPose = pose;
-		raycastKernel(vertex,
-				normal,
+		raycastKernel(vertex_normals,
 				computationSize,
 				volume,
 				raycastPose * getInverseCameraMatrix(k),
