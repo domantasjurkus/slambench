@@ -1,13 +1,14 @@
 #include <kernels_stl.h>
 #include <cmath>
 
-//#include <experimental/algorithm>
-//#include <sycl/execution_policy>
+#include <experimental/algorithm>
+#include <sycl/execution_policy>
 
-/*namespace {
+namespace {
     sycl::sycl_execution_policy<class half_sample> half_sample_par;
-    sycl::sycl_execution_policy<class track_kernel> track_kernel_par;
-}*/
+    sycl::sycl_execution_policy<class track_transform> track_transform_par;
+    sycl::sycl_execution_policy<class track_reduce> track_reduce_par;
+}
 
 void halfSampleRobustImageKernel(std::vector<float> &out,
         std::vector<float> in,
@@ -245,17 +246,10 @@ void new_reduce(std::vector<float> &out,    // size 8*32 (only using 32)
         const uint2 trackDataSize,          // 160x120
         const uint2 localimagesize) {       // 40x30
 
-    /*for (int i=0; i<5; i++) {
-        std::cout << trackData[i].J[0] << " ";
-    }
-    std::cout << "\n";*/
-
     std::vector<std::array<float, 32>> intermediate(trackDataSize.x*trackDataSize.y);
     std::transform(trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
+    //std::experimental::parallel::transform(track_transform_par, trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
         std::array<float, 32> entry{};
-
-        //if (std::isnan(td.error)) td.error = 0.0f;
-        //std::cout << td.result << " " << td.error << " " << td.J[0] << std::endl;
         
         if (td.result<1) {
             entry[29] = td.result == -4 ? 1 : 0;
@@ -292,68 +286,23 @@ void new_reduce(std::vector<float> &out,    // size 8*32 (only using 32)
         entry[26] = td.J[4] * td.J[5];
         entry[27] = td.J[5] * td.J[5];
         entry[28] = 1;
-        //std::cout << "in transform: " << entry[0] << " " << entry[7] << std::endl;
         return entry;
     });
 
     std::array<float, 32> initial{};
-    std::array<float, 32> result = std::accumulate(intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
-        //std::cout << "in reduce: " << entry[0] << " " << entry[7] << std::endl;
+    std::array<float, 32> result{};
+    result = std::accumulate(intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
+    /*result = std::experimental::parallel::reduce(track_reduce_par,
+            intermediate.begin(),
+            intermediate.end(),
+            initial,
+            [=](std::array<float, 32> acc, std::array<float, 32> entry) {*/
         for (int i=0; i<32; i++) {
             acc[i] += entry[i];
         }
         return acc;
     });
     
-    for (int i=0; i<32; i++) {
-        //std::cout << result[i];
-        out[i] = result[i];
-    }
-
-    // Columns of nans
-    //std::cout << result[0] << result[1] << result[2] << result[3] << std::endl;
-
-    // This works
-    /*std::fill(out.begin(), out.begin()+32, 0.0f);
-    std::array<float, 32> result{};
-    std::for_each(trackData.begin(), trackData.end(), [&](TrackData td) {
-        if (td.result<1) {
-            result[29] += td.result == -4 ? 1 : 0;
-            result[30] += td.result == -5 ? 1 : 0;
-            result[31] += td.result > -4 ? 1 : 0;
-            return;
-        }
-        result[0] += td.error * td.error;
-        result[1] += td.error * td.J[0];
-        result[2] += td.error * td.J[1];
-        result[3] += td.error * td.J[2];
-        result[4] += td.error * td.J[3];
-        result[5] += td.error * td.J[4];
-        result[6] += td.error * td.J[5];
-        result[7] += td.J[0] * td.J[0];
-        result[8] += td.J[0] * td.J[1];
-        result[9] += td.J[0] * td.J[2];
-        result[10] += td.J[0] * td.J[3];
-        result[11] += td.J[0] * td.J[4];
-        result[12] += td.J[0] * td.J[5];
-        result[13] += td.J[1] * td.J[1];
-        result[14] += td.J[1] * td.J[2];
-        result[15] += td.J[1] * td.J[3];
-        result[16] += td.J[1] * td.J[4];
-        result[17] += td.J[1] * td.J[5];
-        result[18] += td.J[2] * td.J[2];
-        result[19] += td.J[2] * td.J[3];
-        result[20] += td.J[2] * td.J[4];
-        result[21] += td.J[2] * td.J[5];
-        result[22] += td.J[3] * td.J[3];
-        result[23] += td.J[3] * td.J[4];
-        result[24] += td.J[3] * td.J[5];
-        result[25] += td.J[4] * td.J[4];
-        result[26] += td.J[4] * td.J[5];
-        result[27] += td.J[5] * td.J[5];
-        result[28] += 1;
-    });*/
-
     for (int i=0; i<32; i++) {
         out[i] = result[i];
     }

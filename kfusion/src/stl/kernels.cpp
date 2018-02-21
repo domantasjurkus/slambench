@@ -44,7 +44,6 @@ std::vector<std::vector<float3>> inputNormal;
 void Kfusion::languageSpecificConstructor() {
 	// internal buffers to initialize
 	reductionoutput.resize(8*32);
-	//reductionoutput.resize(32);
 	scaledDepthVector.resize(iterations.size());
 
 	inputVertex.resize(iterations.size());
