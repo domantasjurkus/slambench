@@ -22,7 +22,8 @@ void raycastKernel(std::vector<std::pair<float3, float3>> &vertex_normals,
 
         std::pair<float3, float3> new_pair(make_float3(0), make_float3(KFUSION_INVALID,0,0));
 
-        const float4 hit = raycast(integration, pos, view, nearPlane, farPlane, step, largestep);
+        const float3 origin = get_translation(view);
+        const float4 hit = raycast(integration, pos, view, origin, nearPlane, farPlane, step, largestep);
 
         if (hit.w > 0.0) {
             new_pair.first = make_float3(hit);

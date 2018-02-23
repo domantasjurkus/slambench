@@ -25,16 +25,8 @@ public:
 		this->volumeResolution = volumeResolution;
 		
 		this->iterations.clear();
-		
-		// Reallocation of memory (bad):
-		// std::move(pyramid.begin(), pyramid.end(), std::back_inserter(this->iterations));
-
-		// Why not this one?
-		// this->iterations = pyramid;
-
 		this->iterations = std::move(pyramid);
-		// this->iterators = pyramid would trigger copying
-
+		
 		this->step = min(volumeDimensions) / max(volumeResolution);
 		this->languageSpecificConstructor();
 	}

@@ -73,7 +73,8 @@ void renderVolumeKernel(std::vector<uchar4> out,
         for (uint x=0; x<depthSize.x; x++) {
             const uint pos = x + y*depthSize.x;
 
-            float4 hit = raycast(volume, make_uint2(x, y), view, nearPlane, farPlane, step, largestep);
+            const float3 origin = get_translation(view);
+            float4 hit = raycast(volume, make_uint2(x, y), view, origin, nearPlane, farPlane, step, largestep);
             if (hit.w > 0) {
                 const float3 test = make_float3(hit);
                 const float3 surfNorm = volume.grad(test);

@@ -72,8 +72,13 @@ void renderVolumeKernel(std::vector<uchar4> out, const uint2 depthSize, const Vo
 		const float3 ambient);
 
 ////////////////////////// MULTI-KERNELS PROTOTYPES //////////////////////
-float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
-        const float nearPlane, const float farPlane, const float step,
+float4 raycast(const Volume volume,
+		const uint2 pos,
+		const Matrix4 view,
+		const float3 origin,
+        const float nearPlane,
+		const float farPlane,
+		const float step,
         const float largestep);
 
 void computeFrame(Volume & integration, float3 * vertex, float3 * normal,
