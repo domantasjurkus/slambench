@@ -28,15 +28,25 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
 
         uint2 pixel = make_uint2(x,y);
         const uint2 centerPixel = pixel*2;
-
-        float sum = 0.0f;
-        float t = 0.0f;
-        // in - static tdess pattern
         const float center = in[centerPixel.x + centerPixel.y*inSize.x];
 
+        //float sum = 0.0f;
+        //float t = 0.0f;
+        float2 sum_and_t = make_float2(0.0f, 0.0f);
         std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
+
+        sum_and_t = std::accumulate(pairs.begin(), pairs.end(), make_float2(0.0f, 0.0f), [=](float2 acc, int2 p) {
+            uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
+                                         make_int2(outSize.x*2-1, outSize.y*2-1)));
+            float current = in[cur.x + cur.y*inSize.x];
+            if (fabsf(current - center) < e_d) {
+                acc.x += 1.0f;
+                acc.y += acc.x;
+            }
+            return acc;
+        });
         
-        std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
+        /*std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
             uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
                                          make_int2(outSize.x*2-1, outSize.y*2-1)));
             float current = in[cur.x + cur.y*inSize.x];
@@ -44,10 +54,10 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
                 sum += 1.0f;
                 t += current;
             }
-        });
+        });*/
         
-        //out[pixel.x + pixel.y*outSize.x] = t/sum;
-        return t/sum;
+        //return t/sum;
+        return sum_and_t.y/sum_and_t.x;
     });
 
     /*for (uint y=0; y<outSize.y; y++) {
@@ -89,73 +99,35 @@ void depth2vertexKernel(std::vector<float3> &vertex,
 
         return (d>0) ? d * rotate(invK, make_float3(x,y,1.0f)) : make_float3(0);
     });
-
-    /*for (uint y=0; y<imageSize.y; y++) {
-        int offset = y*imageSize.x;
-
-        // Can't do a transform since we need x coordinate in rotate()
-        for (uint x=0; x<imageSize.x; x++) {
-            if (depth[x + offset] > 0) {
-                vertex[x + offset] = depth[x + offset] * rotate(invK, make_float3(x,y,1.f));
-            } else {
-                vertex[x + offset] = make_float3(0);
-            }
-        };
-    };*/
 }
 
 void vertex2normalKernel(std::vector<float3> &out,
         const std::vector<float3> in,
+        const std::vector<uint> pixels,
         uint2 imageSize) {
 
-    // Segfault
-    // std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
-    //     uint x = pos % imageSize.x;
-    //     uint y = pos / imageSize.x;
-
-    //     const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
-    //     const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
-    //     const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
-    //     const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
-
-    //     std::cout << pleft.x + imageSize.x * pleft.y << std::endl;
-
-    //     const float3 left  = in[pleft.x + imageSize.x * pleft.y];
-    //     const float3 right = in[pright.x + imageSize.x * pright.y];
-    //     const float3 up    = in[pup.x + imageSize.x * pup.y];
-    //     const float3 down  = in[pdown.x + imageSize.x * pdown.y];
-
-    //     if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
-    //         return make_float3(KFUSION_INVALID, 0.0f, 0.0f);
-    //     }
-    //     const float3 dxv = right - left;
-    //     const float3 dyv = down - up;
-    //     return normalize(cross(dyv, dxv));
-    // });
-
     // Stencil
-    for (uint y=0; y<imageSize.y; y++) {
-        for (uint x=0; x<imageSize.x; x++) {
+    std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
+        uint x = pos % imageSize.x;
+        uint y = pos / imageSize.x;
+        
+        const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
+        const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
+        const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
+        const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
 
-			const uint2 pleft  = make_uint2(max(int(x) - 1, 0), y);
-			const uint2 pright = make_uint2(min(x + 1, (int) imageSize.x - 1), y);
-			const uint2 pup    = make_uint2(x, max(int(y) - 1, 0));
-			const uint2 pdown  = make_uint2(x, min(y + 1, ((int) imageSize.y) - 1));
+        const float3 left  = in[pleft.x + imageSize.x * pleft.y];
+        const float3 right = in[pright.x + imageSize.x * pright.y];
+        const float3 up    = in[pup.x + imageSize.x * pup.y];
+        const float3 down  = in[pdown.x + imageSize.x * pdown.y];
 
-			const float3 left  = in[pleft.x + imageSize.x * pleft.y];
-			const float3 right = in[pright.x + imageSize.x * pright.y];
-			const float3 up    = in[pup.x + imageSize.x * pup.y];
-			const float3 down  = in[pdown.x + imageSize.x * pdown.y];
-
-			if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
-				out[x + y*imageSize.x].x = KFUSION_INVALID;
-				return;
-			}
-			const float3 dxv = right - left;
-			const float3 dyv = down - up;
-			out[x + y*imageSize.x] = normalize(cross(dyv, dxv));
-		};
-	};
+        if (left.z == 0 || right.z == 0 || up.z == 0 || down.z == 0) {
+            return make_float3(KFUSION_INVALID, 0.0f, 0.0f);
+        }
+        const float3 dxv = right - left;
+        const float3 dyv = down - up;
+        return normalize(cross(dyv, dxv));
+    });
 }
 
 void trackKernel(std::vector<TrackData> &output,

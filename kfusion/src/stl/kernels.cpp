@@ -163,7 +163,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 	for (uint i=0; i<iterations.size(); ++i) {
 		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
 		depth2vertexKernel(inputVertex[i], scaledDepthVector[i], pixels, localimagesize, invK);
-		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
+		vertex2normalKernel(inputNormal[i], inputVertex[i], pixels, localimagesize);
 		localimagesize = make_uint2(localimagesize.x/2, localimagesize.y/2);
 	}
 

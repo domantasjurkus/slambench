@@ -35,6 +35,7 @@ void depth2vertexKernel(std::vector<float3> &vertex,
 
 void vertex2normalKernel(std::vector<float3> &out,
 		const std::vector<float3> in,
+		const std::vector<uint> pixels,
 		uint2 imageSize);
 
 void trackKernel(std::vector<TrackData> &output,
