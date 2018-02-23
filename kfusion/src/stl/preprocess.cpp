@@ -4,12 +4,12 @@
 // #include <boost/range/algorithm/copy.hpp>
 // #include <boost/assign.hpp>
 
-#include <experimental/algorithm>
+/*#include <experimental/algorithm>
 #include <sycl/execution_policy>
 
 namespace {
     sycl::sycl_execution_policy<class bilateral_filter> bilateral_filter_par;
-}
+}*/
 
 void mm2metersKernel(std::vector<float> &out,
         uint2 outSize,
@@ -59,32 +59,29 @@ void bilateralFilterKernel(std::vector<float> &out,
         }
 
         const float center = in[pos];
-        float t = 0.0f;
-        float sum = 0.0f;
-
-        /*std::vector<int2> pairs = generate_int_pairs(-r,r,-r,r);
-        std::vector<std::pair<int2, float>> near_depths(pairs.size());
-
-        std::transform(pairs.begin(), pairs.end(), near_depths.begin(), [=](int2 p) {
-            uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1), clamp(y+p.y, 0u, size.y-1));
-            return std::make_pair(p, in[curPos.x + curPos.y*size.x]);
-        });
-
-        auto reduce_neighbourhood = [=](float2 acc, std::pair<int2, float> p) {
-            if (p.second > 0) {
-                const float mod = std::pow(p.second - center, 2);
-                const float factor = gaussian[p.first.x+r]*gaussian[p.first.y+r] * expf(-mod / e_d_squared_2);
-                acc.x += (factor * p.second);
-                acc.y += factor;
-            }
-            return acc;
-        };*/
-
-        //float2 result = std::accumulate(near_depths.begin(), near_depths.end(), make_float2(0.0f, 0.0f), reduce_neighbourhood);
-        //float2 result = std::experimental::parallel::reduce(bilateral_filter_par, near_depths.begin(), near_depths.end(), make_float2(0.0f, 0.0f), reduce_neighbourhood);
 
         std::vector<int2> pairs = generate_int_pairs(-r,r,-r,r);
 
+        // Much, much slower
+        /*float2 sum_and_t = make_float2(0.0f, 0.0f);
+        sum_and_t = std::accumulate(pairs.begin(), pairs.end(), make_float2(0.0f, 0.0f), [=](float2 acc, int2 p) {
+            uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
+                                      clamp(y+p.y, 0u, size.y-1));
+
+            const float curPix = in[curPos.x + curPos.y*size.x];
+
+            if (curPix > 0) {
+                const float mod = sq(curPix - center);
+                const float factor = gaussian[p.x+r]*gaussian[p.y+r]*expf(-mod / e_d_squared_2);
+                acc.y += factor * curPix;
+                acc.x += factor;
+            }
+            return acc;
+        });
+        return sum_and_t.y/sum_and_t.x;*/
+        
+        float t = 0.0f;
+        float sum = 0.0f;
         std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
             uint2 curPos = make_uint2(clamp(x+p.x, 0u, size.x-1),
                                       clamp(y+p.y, 0u, size.y-1));
@@ -98,7 +95,6 @@ void bilateralFilterKernel(std::vector<float> &out,
                 sum += factor;
             }
         });
-
         return t/sum;
     });
 }

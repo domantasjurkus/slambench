@@ -1,14 +1,14 @@
 #include <kernels_stl.h>
 #include <cmath>
 
-#include <experimental/algorithm>
+/*#include <experimental/algorithm>
 #include <sycl/execution_policy>
 
 namespace {
     sycl::sycl_execution_policy<class half_sample> half_sample_par;
     sycl::sycl_execution_policy<class track_transform> track_transform_par;
     sycl::sycl_execution_policy<class track_reduce> track_reduce_par;
-}
+}*/
 
 void halfSampleRobustImageKernel(std::vector<float> &out,
         std::vector<float> in,
@@ -29,12 +29,10 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
         uint2 pixel = make_uint2(x,y);
         const uint2 centerPixel = pixel*2;
         const float center = in[centerPixel.x + centerPixel.y*inSize.x];
-
-        //float sum = 0.0f;
-        //float t = 0.0f;
-        float2 sum_and_t = make_float2(0.0f, 0.0f);
         std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
 
+        // Much, much slower
+        /*float2 sum_and_t = make_float2(0.0f, 0.0f);
         sum_and_t = std::accumulate(pairs.begin(), pairs.end(), make_float2(0.0f, 0.0f), [=](float2 acc, int2 p) {
             uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
                                          make_int2(outSize.x*2-1, outSize.y*2-1)));
@@ -45,8 +43,11 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
             }
             return acc;
         });
+        return sum_and_t.y/sum_and_t.x;*/
         
-        /*std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
+        float t = 0.0f;
+        float sum = 0.0f;
+        std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
             uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
                                          make_int2(outSize.x*2-1, outSize.y*2-1)));
             float current = in[cur.x + cur.y*inSize.x];
@@ -54,37 +55,9 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
                 sum += 1.0f;
                 t += current;
             }
-        });*/
-        
-        //return t/sum;
-        return sum_and_t.y/sum_and_t.x;
+        });
+        return t/sum;
     });
-
-    /*for (uint y=0; y<outSize.y; y++) {
-        for (uint x=0; x<outSize.x; x++) {
-            
-            uint2 pixel = make_uint2(x,y);
-            const uint2 centerPixel = pixel*2;
-
-            float sum = 0.0f;
-            float t = 0.0f;
-            const float center = in[centerPixel.x + centerPixel.y*inSize.x];
-
-            std::vector<int2> pairs = generate_int_pairs(-r+1, r, -r+1, r);
-            
-            std::for_each(pairs.begin(), pairs.end(), [&](int2 p) {
-                uint2 cur = make_uint2(clamp(make_int2(centerPixel.x+p.x, centerPixel.y+p.y), make_int2(0),
-                                             make_int2(outSize.x*2-1, outSize.y*2-1)));
-                float current = in[cur.x + cur.y*inSize.x];
-                if (fabsf(current - center) < e_d) {
-                    sum += 1.0f;
-                    t += current;
-                }
-            });
-            
-            out[pixel.x + pixel.y*outSize.x] = t/sum;
-        }
-    }*/
 }
 
 void depth2vertexKernel(std::vector<float3> &vertex,
