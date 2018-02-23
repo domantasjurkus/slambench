@@ -6,14 +6,12 @@
 void raycastKernel(std::vector<std::pair<float3, float3>> &vertex_normals,
         uint2 inputSize,
         const Volume integration,
+        const std::vector<uint> pixels,
         const Matrix4 view,
         const float nearPlane,
         const float farPlane,
         const float step,
         const float largestep) {
-
-    std::vector<uint> pixels(inputSize.x*inputSize.y);
-    std::iota(pixels.begin(), pixels.end(), 0);
 
     std::transform(pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
         uint x = pix % inputSize.x;

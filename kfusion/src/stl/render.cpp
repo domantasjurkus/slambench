@@ -45,6 +45,7 @@ void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> dat
 void renderVolumeKernel(std::vector<uchar4> out,
         const uint2 depthSize,
         const Volume volume,
+        const std::vector<uint> pixels,
         const Matrix4 view,
         const float nearPlane,
         const float farPlane,
@@ -53,27 +54,31 @@ void renderVolumeKernel(std::vector<uchar4> out,
         const float3 light,
         const float3 ambient) {
 
-    // do std::iota, then parallel transform
-    // in the future, std::iota will not me instantiated in memory
+    const float3 origin = get_translation(view);
 
-    for (uint y=0; y<depthSize.y; y++) {
-        /*int offset = y*depthSize.x;
-        auto input_start = out.begin() + offset;
-        auto input_end = out.begin() + offset + depthSize.x;
-        auto output_start = out.begin() + offset;*/
+    std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+        uint x = pos % depthSize.x;
+        uint y = pos / depthSize.x;
 
-        //
-        // Cannot std::transform due to the need for x?
-        //
-        //std::experimental::parallel::transform(render_track_par, input_start, input_end, output_start, [](TrackData td) {
-        /*std::transform(input_start, input_end, output_start, [=](uchar4 unused) {
+        float4 hit = raycast(volume, make_uint2(x, y), view, origin, nearPlane, farPlane, step, largestep);
+        if (hit.w > 0) {
+            const float3 test = make_float3(hit);
+            const float3 surfNorm = volume.grad(test);
+            if (length(surfNorm) > 0) {
+                const float3 diff = normalize(light - test);
+                const float dir = fmaxf(dot(normalize(surfNorm), diff), 0.f);
+                const float3 col = clamp(make_float3(dir) + ambient, 0.f, 1.f) * 255;
+                return make_uchar4(col.x, col.y, col.z, 0);
+            }
+            return make_uchar4(0, 0, 0, 0);
+        }
+        return make_uchar4(0, 0, 0, 0);
+    });
 
-        }*/
-
+    /*for (uint y=0; y<depthSize.y; y++) {
         for (uint x=0; x<depthSize.x; x++) {
             const uint pos = x + y*depthSize.x;
 
-            const float3 origin = get_translation(view);
             float4 hit = raycast(volume, make_uint2(x, y), view, origin, nearPlane, farPlane, step, largestep);
             if (hit.w > 0) {
                 const float3 test = make_float3(hit);
@@ -90,5 +95,5 @@ void renderVolumeKernel(std::vector<uchar4> out,
                 out[pos] = make_uchar4(0, 0, 0, 0);
             }
         }
-    }
+    }*/
 }

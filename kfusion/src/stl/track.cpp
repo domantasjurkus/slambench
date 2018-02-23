@@ -79,11 +79,9 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
 
 void depth2vertexKernel(std::vector<float3> &vertex,
         const std::vector<float> depth,
+        const std::vector<uint> pixels,
         uint2 imageSize,
         const Matrix4 invK) {
-
-    std::vector<uint> pixels(imageSize.x*imageSize.y);
-    std::iota(pixels.begin(), pixels.end(), 0);
 
     std::transform(depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
         uint x = pos % imageSize.x;
@@ -106,14 +104,11 @@ void depth2vertexKernel(std::vector<float3> &vertex,
     };*/
 }
 
-void vertex2normalKernel(std::vector<float3> &out, const std::vector<float3> in, uint2 imageSize) {
+void vertex2normalKernel(std::vector<float3> &out,
+        const std::vector<float3> in,
+        uint2 imageSize) {
 
     // Segfault
-    std::vector<uint> pixels(imageSize.x*imageSize.y);
-    std::iota(pixels.begin(), pixels.end(), 0);
-
-    // std::cout << "\n\n" << in.size() << "\n\n" << std::endl;
-
     // std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
     //     uint x = pos % imageSize.x;
     //     uint y = pos / imageSize.x;
@@ -236,8 +231,6 @@ void trackKernel(std::vector<TrackData> &output,
         ((float3 *) row.J)[0] = referenceNormal;
         ((float3 *) row.J)[1] = cross(projectedVertex, referenceNormal);
         return row;
-    //     };
-    // };
     });
 }
 
@@ -247,6 +240,7 @@ void new_reduce(std::vector<float> &out,    // size 8*32 (only using 32)
         const uint2 localimagesize) {       // 40x30
 
     std::vector<std::array<float, 32>> intermediate(trackDataSize.x*trackDataSize.y);
+    
     std::transform(trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
     //std::experimental::parallel::transform(track_transform_par, trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
         std::array<float, 32> entry{};
