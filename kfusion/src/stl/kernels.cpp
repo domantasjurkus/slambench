@@ -1,8 +1,8 @@
 #include <kernels_stl.h>
 #include <kfusion_class.h>
 
-#include <sycl/execution_policy>
-#include <range/v3/all.hpp>
+//#include <sycl/execution_policy>
+//#include <range/v3/all.hpp>
 
 inline double tock() {
 	synchroniseDevices();
@@ -67,19 +67,19 @@ void Kfusion::languageSpecificConstructor() {
 	std::iota(pixels.begin(), pixels.end(), 0);
 
 	// ********* BEGIN : Generate the gaussian *************
-	gaussian.resize(radius*2 + 1);
-	auto g = ranges::view::ints(0, radius*2+1);
+	gaussian.resize(radius*2+1);
 
-	ranges::transform(g, gaussian.begin(), [](float i) {
-		return expf(-((i-2) * (i-2)) / (2 * delta * delta));
-	});
+	// auto g = ranges::view::ints(0, radius*2+1);
+	// ranges::transform(g, gaussian.begin(), [](float i) {
+	// 	return expf(-((i-2) * (i-2)) / (2 * delta * delta));
+	// });
 
 	// This is another way of generating a gaussian, but it looks more complicated than it has to be
-	// std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
-	// 	int x = i-2;
-	// 	i++;
-	// 	return expf(-(x*x) / (2*delta*delta));
-	// });
+	std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
+		int x = i-2;
+		i++;
+		return expf(-(x*x) / (2*delta*delta));
+	});
 
 	// Original
 	/*for (auto i=0; i<gaussianS; i++) {
@@ -141,7 +141,7 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> o
 }
 
 bool Kfusion::preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize) {
-	mm2metersKernel(floatDepthVector, computationSize, inputDepth, inputSize);
+	mm2metersKernel(floatDepthVector, computationSize, pixels, inputDepth, inputSize);
 	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, pixels, computationSize, gaussian, e_delta, radius);
 	return true;
 }
@@ -177,7 +177,6 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 
 		for (int i=0; i<iterations[level]; ++i) {
 
-			double a = tock();
 			trackKernel(trackingResult[level],
 					inputVertex[level],
 					inputNormal[level],
@@ -188,11 +187,9 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 					projectReference,
 					dist_threshold,
 					normal_threshold);
-			double b = tock();
 					
-			// sum of the errors
 			reduceKernel(reductionoutput, trackingResult[level], computationSize, localimagesize);
-			
+
 			// correct for the errors
 			if (updatePoseKernel(pose, reductionoutput, icp_threshold)) {
 				break;

@@ -1,5 +1,7 @@
 #include <kernels_stl.h>
 
+//#include <range/v3/all.hpp>
+
 // #include <boost/range/adaptor/strided.hpp>
 // #include <boost/range/algorithm/copy.hpp>
 // #include <boost/assign.hpp>
@@ -13,6 +15,7 @@ namespace {
 
 void mm2metersKernel(std::vector<float> &out,
         uint2 outSize,
+        const std::vector<uint> pixels,
         const std::vector<uint16_t> in,
         uint2 inSize) {
             
@@ -22,19 +25,26 @@ void mm2metersKernel(std::vector<float> &out,
     
     int ratio = inSize.x / outSize.x;
 
-    //std::transform(in.begin(), in.end(), out.begin(), [](uint16_t inValue) { return (float) inValue / 1000.0f; });
-
     // Gather
-    for (uint y=0; y<outSize.y; y++) {
+    // lambda capture with pointer fields
+    std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+        uint x = pos % outSize.x;
+        uint y = pos / outSize.x;
+        return in[x*ratio + inSize.x*y*ratio] / 1000.0f;
+    });
+
+    /*for (uint y=0; y<outSize.y; y++) {
 		for (uint x=0; x<outSize.x; x++) {
 			out[x + outSize.x*y] = in[x*ratio + inSize.x*y*ratio] / 1000.0f;
 		}
-    };
+    };*/
 
-    // Boost
-    // One-line wonder
+    // Boost one-line wonder
     //using namespace boost::assign;
     //boost::copy(input | boost::adaptors::strided(ratio), out.begin());
+
+    // Ranges (memory corruption?)
+    //out = in | ranges::view::stride(ratio) | ranges::view::transform([](float f) {return f/1.000f;});
 }
 
 void bilateralFilterKernel(std::vector<float> &out,
@@ -46,6 +56,8 @@ void bilateralFilterKernel(std::vector<float> &out,
         int r) {
     float e_d_squared_2 = e_d*e_d*2;
 
+    // lambda capture with pointer fields
+    // which one is faster?
     //std::for_each(pixels.begin(), pixels.end(), [&](uint pos) {
     std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
     //std::experimental::parallel::transform(bilateral_filter_par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {

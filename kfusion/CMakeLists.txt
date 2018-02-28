@@ -37,7 +37,7 @@ add_library(${appname}-cpp  src/cpp/kernels.cpp)
 target_link_libraries(${appname}-cpp   ${common_libraries})	
 add_version(${appname} cpp "" "")
 
-# ----------------- SYCL/STL VERSION -----------------
+# ----------------- STL VERSION -----------------
 include_directories(/home/dom/range-v3/include)
 set(COMPUTECPP_PACKAGE_ROOT_DIR /home/dom/computecpp-ce-0.5.1)
 set(COMPUTECPP_INCLUDE_DIRECTORY /home/dom/computecpp-ce-0.5.1/include)
@@ -45,6 +45,8 @@ set(SYCL_PARALLEL_STL_INCLUDE_DIRECTORY /home/dom/sycl_parallel_stl/include)
 
 set(CMAKE_MODULE_PATH /home/dom/computecpp-sdk/cmake/Modules/)
 include(FindComputeCpp)
+
+#include_directories("/opt/intel/pstl/include")
 
 include_directories(${COMPUTECPP_INCLUDE_DIRECTORY})
 include_directories(${SYCL_PARALLEL_STL_INCLUDE_DIRECTORY})

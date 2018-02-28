@@ -10,6 +10,7 @@ void initVolumeKernel(Volume volume);
 
 void mm2metersKernel(std::vector<float> &out,
 		uint2 outSize,
+		const std::vector<uint> pixels,
 		const std::vector<ushort> in,
 		uint2 inSize);
 

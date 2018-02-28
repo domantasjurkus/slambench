@@ -3,11 +3,9 @@
 #include <commons.h>
 
 //#include <experimental/algorithm>
-//#include <sycl/execution_policy>
+//#include <sycl/execution_policy>-
+//#include "pstl/algorithm"
 
-// Unnamed/annonymous namespace
-// Internal linkage - linker guarantees that the variables inside the namespace
-// are not leaked to other translation units
 /*namespace {
     sycl::sycl_execution_policy<class render_depth> render_depth_par{};
     sycl::sycl_execution_policy<class render_track> render_track_par{};
@@ -17,6 +15,7 @@ void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 
     float rangeScale = 1 / (farPlane - nearPlane);
 
     //std::experimental::parallel::transform(render_depth_par, depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
+    //std::experimental::parallel::transform(std::execution::par, depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
     std::transform(depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
         if (depthValue < nearPlane) { return make_uchar4(255, 255, 255, 0); }
         if (depthValue > farPlane)  { return make_uchar4(0, 0, 0, 0); }
@@ -41,7 +40,6 @@ void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> dat
     });
 }
 
-// Exactly the same as a raycast
 void renderVolumeKernel(std::vector<uchar4> out,
         const uint2 depthSize,
         const Volume volume,
@@ -56,6 +54,7 @@ void renderVolumeKernel(std::vector<uchar4> out,
 
     const float3 origin = get_translation(view);
 
+    // lambda capture with pointer fields
     std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
         uint x = pos % depthSize.x;
         uint y = pos / depthSize.x;
@@ -74,26 +73,4 @@ void renderVolumeKernel(std::vector<uchar4> out,
         }
         return make_uchar4(0, 0, 0, 0);
     });
-
-    /*for (uint y=0; y<depthSize.y; y++) {
-        for (uint x=0; x<depthSize.x; x++) {
-            const uint pos = x + y*depthSize.x;
-
-            float4 hit = raycast(volume, make_uint2(x, y), view, origin, nearPlane, farPlane, step, largestep);
-            if (hit.w > 0) {
-                const float3 test = make_float3(hit);
-                const float3 surfNorm = volume.grad(test);
-                if (length(surfNorm) > 0) {
-                    const float3 diff = normalize(light - test);
-                    const float dir = fmaxf(dot(normalize(surfNorm), diff), 0.f);
-                    const float3 col = clamp(make_float3(dir) + ambient, 0.f, 1.f) * 255;
-                    out[pos] = make_uchar4(col.x, col.y, col.z, 0);
-                } else {
-                    out[pos] = make_uchar4(0, 0, 0, 0);
-                }
-            } else {
-                out[pos] = make_uchar4(0, 0, 0, 0);
-            }
-        }
-    }*/
 }

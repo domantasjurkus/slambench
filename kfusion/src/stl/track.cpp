@@ -21,6 +21,7 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
     std::vector<uint> pixels(outSize.x*outSize.y);
     std::iota(pixels.begin(), pixels.end(), 0);
 
+    // lambda capture with pointer fields
     std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
     //std::experimental::parallel::transform(half_sample_par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
         uint x = pos % outSize.x;
@@ -80,6 +81,7 @@ void vertex2normalKernel(std::vector<float3> &out,
         uint2 imageSize) {
 
     // Stencil
+    // lambda capture with pointer fields
     std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
         uint x = pos % imageSize.x;
         uint y = pos / imageSize.x;
@@ -114,11 +116,11 @@ void trackKernel(std::vector<TrackData> &output,
         const float dist_threshold,
         const float normal_threshold) {
 
+    // Need to generate pixels vector since input size will vary
     std::vector<uint> pixels(inSize.x*inSize.y);
     std::iota(pixels.begin(), pixels.end(), 0);
 
-    // for (uint pixely=0; pixely<inSize.y; pixely++) {
-    //     for (uint pixelx=0; pixelx<inSize.x; pixelx++) {
+    // lambda capture with pointer fields
     std::transform(pixels.begin(), pixels.end(), output.begin(), [=](uint pos) {
     //std::experimental::parallel::transform(track_kernel_par, pixels.begin(), pixels.end(), output.begin(), [=](uint pos) {
         uint x = pos % inSize.x;

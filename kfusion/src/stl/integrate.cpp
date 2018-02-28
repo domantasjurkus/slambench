@@ -1,7 +1,5 @@
 #include <kernels_stl.h>
 
-
-
 // Given the point cloud, how to update the volume
 // In-place transformation (side-effect to an argument) because we (usually) don't have enough memory
 // to store two Volumes in RAM
@@ -51,6 +49,5 @@ void integrateKernel(Volume vol,
 				vol.set(pix, data);
 			}
 		}
-
 	});
 }
