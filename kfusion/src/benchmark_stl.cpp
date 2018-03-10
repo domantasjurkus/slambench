@@ -149,7 +149,9 @@ int main(int argc, char ** argv) {
 
 		timings[6] = tock();
 
-		*logstream << frame << "\t" << timings[1] - timings[0] << "\t" //  acquisition
+		*logstream
+				<< frame << "\t"
+				<< timings[1] - timings[0] << "\t" 	   //  acquisition
 				<< timings[2] - timings[1] << "\t"     //  preprocessing
 				<< timings[3] - timings[2] << "\t"     //  tracking
 				<< timings[4] - timings[3] << "\t"     //  integration

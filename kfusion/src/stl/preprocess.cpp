@@ -1,15 +1,13 @@
 #include <kernels_stl.h>
 
 //#include <range/v3/all.hpp>
+//#include <experimental/algorithm>
+//#include <sycl/execution_policy>
 
-// #include <boost/range/adaptor/strided.hpp>
-// #include <boost/range/algorithm/copy.hpp>
-// #include <boost/assign.hpp>
+#include "pstl/execution"
+#include "pstl/algorithm"
 
-/*#include <experimental/algorithm>
-#include <sycl/execution_policy>
-
-namespace {
+/*namespace {
     sycl::sycl_execution_policy<class bilateral_filter> bilateral_filter_par;
 }*/
 
@@ -27,7 +25,8 @@ void mm2metersKernel(std::vector<float> &out,
 
     // Gather
     // lambda capture with pointer fields
-    std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+    //std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+    std::transform(std::execution::par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
         uint x = pos % outSize.x;
         uint y = pos / outSize.x;
         return in[x*ratio + inSize.x*y*ratio] / 1000.0f;
@@ -57,10 +56,9 @@ void bilateralFilterKernel(std::vector<float> &out,
     float e_d_squared_2 = e_d*e_d*2;
 
     // lambda capture with pointer fields
-    // which one is faster?
-    //std::for_each(pixels.begin(), pixels.end(), [&](uint pos) {
-    std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+    //std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
     //std::experimental::parallel::transform(bilateral_filter_par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+    std::transform(std::execution::par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
         // uint pos = x + y*size.x;
         uint x = pos % size.x;
         uint y = pos / size.x;

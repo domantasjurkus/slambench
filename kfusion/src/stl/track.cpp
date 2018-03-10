@@ -1,14 +1,9 @@
 #include <kernels_stl.h>
 #include <cmath>
 
-/*#include <experimental/algorithm>
-#include <sycl/execution_policy>
-
-namespace {
-    sycl::sycl_execution_policy<class half_sample> half_sample_par;
-    sycl::sycl_execution_policy<class track_transform> track_transform_par;
-    sycl::sycl_execution_policy<class track_reduce> track_reduce_par;
-}*/
+#include "pstl/execution"
+#include "pstl/algorithm"
+#include "pstl/numeric"
 
 void halfSampleRobustImageKernel(std::vector<float> &out,
         std::vector<float> in,
@@ -21,9 +16,8 @@ void halfSampleRobustImageKernel(std::vector<float> &out,
     std::vector<uint> pixels(outSize.x*outSize.y);
     std::iota(pixels.begin(), pixels.end(), 0);
 
-    // lambda capture with pointer fields
-    std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
-    //std::experimental::parallel::transform(half_sample_par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+    //std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
+    std::transform(std::execution::par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {        
         uint x = pos % outSize.x;
         uint y = pos / outSize.x;
 
@@ -67,7 +61,8 @@ void depth2vertexKernel(std::vector<float3> &vertex,
         uint2 imageSize,
         const Matrix4 invK) {
 
-    std::transform(depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
+    //std::transform(depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
+    std::transform(std::execution::par, depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
         uint x = pos % imageSize.x;
         uint y = pos / imageSize.x;
 
@@ -81,8 +76,8 @@ void vertex2normalKernel(std::vector<float3> &out,
         uint2 imageSize) {
 
     // Stencil
-    // lambda capture with pointer fields
-    std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
+    //std::transform(in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {
+    std::transform(std::execution::par, in.begin(), in.end(), pixels.begin(), out.begin(), [=](float3 input, uint pos) {        
         uint x = pos % imageSize.x;
         uint y = pos / imageSize.x;
         
@@ -120,9 +115,8 @@ void trackKernel(std::vector<TrackData> &output,
     std::vector<uint> pixels(inSize.x*inSize.y);
     std::iota(pixels.begin(), pixels.end(), 0);
 
-    // lambda capture with pointer fields
-    std::transform(pixels.begin(), pixels.end(), output.begin(), [=](uint pos) {
-    //std::experimental::parallel::transform(track_kernel_par, pixels.begin(), pixels.end(), output.begin(), [=](uint pos) {
+    //std::transform(pixels.begin(), pixels.end(), output.begin(), [=](uint pos) {
+    std::transform(std::execution::par, pixels.begin(), pixels.end(), output.begin(), [&](uint pos) {
         uint x = pos % inSize.x;
         uint y = pos / inSize.x;
 
@@ -181,15 +175,17 @@ void trackKernel(std::vector<TrackData> &output,
     });
 }
 
-void new_reduce(std::vector<float> &out,    // size 8*32 (only using 32)
-        std::vector<TrackData> trackData,   // size 19200
-        const uint2 trackDataSize,          // 160x120
-        const uint2 localimagesize) {       // 40x30
-
-    std::vector<std::array<float, 32>> intermediate(trackDataSize.x*trackDataSize.y);
+void new_reduce(std::vector<float> &out,
+        std::vector<TrackData> trackData,
+        const uint2 trackDataSize,
+        const uint2 localimagesize) {
     
-    std::transform(trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
-    //std::experimental::parallel::transform(track_transform_par, trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
+    std::array<float, 32> result{};
+    std::array<float, 32> initial{};
+    std::vector<std::array<float, 32>> intermediate(trackDataSize.x*trackDataSize.y);
+
+    //std::transform(trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
+    std::transform(std::execution::par, trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
         std::array<float, 32> entry{};
         
         if (td.result<1) {
@@ -230,14 +226,9 @@ void new_reduce(std::vector<float> &out,    // size 8*32 (only using 32)
         return entry;
     });
 
-    std::array<float, 32> initial{};
-    std::array<float, 32> result{};
-    result = std::accumulate(intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
-    /*result = std::experimental::parallel::reduce(track_reduce_par,
-            intermediate.begin(),
-            intermediate.end(),
-            initial,
-            [=](std::array<float, 32> acc, std::array<float, 32> entry) {*/
+    //result = std::accumulate(intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
+    //result = std::reduce(std::execution::par, intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
+    result = std::reduce(std::execution::par, intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
         for (int i=0; i<32; i++) {
             acc[i] += entry[i];
         }

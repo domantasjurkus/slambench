@@ -1,5 +1,6 @@
 #include <kernels_stl.h>
 #include <kfusion_class.h>
+#include <iostream>
 
 //#include <sycl/execution_policy>
 //#include <range/v3/all.hpp>
@@ -43,7 +44,12 @@ std::vector<std::vector<float3>> inputNormal;
 
 std::vector<uint> pixels;
 
+std::array<double, 11> times{};
+int frame_count;
+double a;
+
 void Kfusion::languageSpecificConstructor() {
+
 	// internal buffers to initialize
 	reductionoutput.resize(8*32);
 	scaledDepthVector.resize(iterations.size());
@@ -92,7 +98,23 @@ void Kfusion::languageSpecificConstructor() {
 }
 
 Kfusion::~Kfusion() {
-
+	for (int i=0; i<12; i++)
+		times[i] /= frame_count;
+		
+	std::cout << "Total times: ";
+	printf("%f %s\n", times[0], "mm2meters");
+	printf("%f %s\n", times[1], "bilateralFilter");
+	printf("%f %s\n", times[2], "halfSample");
+	printf("%f %s\n", times[3], "depth2vertex");
+	printf("%f %s\n", times[4], "vertex2normal");
+	printf("%f %s\n", times[5], "track");
+	printf("%f %s\n", times[6], "reduce");
+	printf("%f %s\n", times[7], "integrate");
+	printf("%f %s\n", times[8], "raycast");
+	printf("%f %s\n", times[9], "renderDepth");
+	printf("%f %s\n", times[10], "renderTrack");
+	printf("%f %s\n", times[11], "renderVolume");
+	
 	volume.release();
 }
 void Kfusion::reset() {
@@ -141,8 +163,13 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const std::vector<float> o
 }
 
 bool Kfusion::preprocessing(const std::vector<uint16_t> inputDepth, const uint2 inputSize) {
+	frame_count++;
+	a = tock();
 	mm2metersKernel(floatDepthVector, computationSize, pixels, inputDepth, inputSize);
+	times[0] += tock()-a;
+	a = tock();
 	bilateralFilterKernel(scaledDepthVector[0], floatDepthVector, pixels, computationSize, gaussian, e_delta, radius);
+	times[1] += tock()-a;
 	return true;
 }
 
@@ -152,9 +179,11 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 
 	// half sample the input depth maps into the pyramid levels
 	for (uint i=1; i<iterations.size(); ++i) {
+		a = tock();
 		halfSampleRobustImageKernel(scaledDepthVector[i], scaledDepthVector[i-1],
 				make_uint2(computationSize.x / (int) pow(2, i-1),
 						   computationSize.y / (int) pow(2, i-1)), e_delta*3, 1);
+		times[2] += tock()-a;
 	}
 
 	// prepare the 3D information from the input depth maps
@@ -162,8 +191,13 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 
 	for (uint i=0; i<iterations.size(); ++i) {
 		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
+		a = tock();
 		depth2vertexKernel(inputVertex[i], scaledDepthVector[i], pixels, localimagesize, invK);
+		times[3] += tock()-a;
+		a = tock();
 		vertex2normalKernel(inputNormal[i], inputVertex[i], pixels, localimagesize);
+		times[4] += tock()-a;
+
 		localimagesize = make_uint2(localimagesize.x/2, localimagesize.y/2);
 	}
 
@@ -177,6 +211,7 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 
 		for (int i=0; i<iterations[level]; ++i) {
 
+			a = tock();
 			trackKernel(trackingResult[level],
 					inputVertex[level],
 					inputNormal[level],
@@ -187,8 +222,11 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate, uint f
 					projectReference,
 					dist_threshold,
 					normal_threshold);
-					
+			times[5] += tock()-a;
+
+			a = tock();
 			reduceKernel(reductionoutput, trackingResult[level], computationSize, localimagesize);
+			times[6] = tock()-a;
 
 			// correct for the errors
 			if (updatePoseKernel(pose, reductionoutput, icp_threshold)) {
@@ -203,7 +241,9 @@ bool Kfusion::integration(float4 k, uint integration_rate, float mu, uint frame)
 	bool doIntegrate = checkPoseKernel(pose, oldPose, reductionoutput, computationSize, track_threshold);
 	
 	if ((doIntegrate && ((frame % integration_rate) == 0)) || (frame <= 3)) {
+		a = tock();
 		integrateKernel(volume, floatDepthVector, computationSize, inverse(pose), getCameraMatrix(k), mu, maxweight);
+		times[7] += tock()-a;
 		doIntegrate = true;
 	} else {
 		doIntegrate = false;
@@ -216,6 +256,7 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 
 	if (frame > 2) {
 		raycastPose = pose;
+		a = tock();
 		raycastKernel(vertex_normals,
 				computationSize,
 				volume,
@@ -225,6 +266,7 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 				farPlane,
 				step,
 				0.75f*mu);
+		times[8] += tock()-a;
 	}
 
 	return doRaycast;
@@ -254,18 +296,24 @@ void Kfusion::dumpVolume(const char *filename) {
 }
 
 void Kfusion::renderDepth(std::vector<uchar4> out, uint2 outputSize) {
+	a = tock();
 	renderDepthKernel(out, floatDepthVector, outputSize, nearPlane, farPlane);
+	times[9] += tock()-a;
 }
 
 void Kfusion::renderTrack(std::vector<uchar4> out, uint2 outputSize) {
+	a = tock();
 	renderTrackKernel(out, trackingResult[0], outputSize);
+	times[10] += tock()-a;
 }
 
 void Kfusion::renderVolume(std::vector<uchar4> out, uint2 outputSize, int frame, int raycast_rendering_rate, float4 k, float largestep) {
 	if (frame % raycast_rendering_rate == 0) {
+		a = tock();
 		renderVolumeKernel(out, outputSize, volume, pixels,
 				*(this->viewPose) * getInverseCameraMatrix(k), nearPlane,
 				farPlane * 2.0f, step, largestep, light, ambient);
+		times[11] += tock()-a;
 	}
 }
 

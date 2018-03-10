@@ -1,5 +1,8 @@
 #include <kernels_stl.h>
 
+#include "pstl/execution"
+#include "pstl/algorithm"
+
 // Given the point cloud, how to update the volume
 // In-place transformation (side-effect to an argument) because we (usually) don't have enough memory
 // to store two Volumes in RAM
@@ -17,7 +20,8 @@ void integrateKernel(Volume vol,
 	std::vector<uint> pixels(vol.size.x * vol.size.y, 0);
     std::iota(pixels.begin(), pixels.end(), 0);
 	
-	std::for_each(pixels.begin(), pixels.end(), [&](uint pixel) {
+	//std::for_each(pixels.begin(), pixels.end(), [&](uint pixel) {
+	std::for_each(std::execution::par, pixels.begin(), pixels.end(), [&](uint pixel) {
         uint x = pixel % vol.size.x;
         uint y = pixel / vol.size.x ;
 

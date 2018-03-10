@@ -2,6 +2,9 @@ cmake_minimum_required(VERSION 2.8)
 
 project(pamela_testcases)
 
+# Use Intel's compiler
+set(CMAKE_CXX_COMPILER "icpc")
+
 set(CMAKE_MODULE_PATH ${CMAKE_MODULE_PATH} ${CMAKE_CURRENT_SOURCE_DIR}/cmake)
 
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -O3 -std=gnu++17")

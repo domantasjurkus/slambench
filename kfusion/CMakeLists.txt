@@ -39,20 +39,19 @@ add_version(${appname} cpp "" "")
 
 # ----------------- STL VERSION -----------------
 include_directories(/home/dom/range-v3/include)
-set(COMPUTECPP_PACKAGE_ROOT_DIR /home/dom/computecpp-ce-0.5.1)
-set(COMPUTECPP_INCLUDE_DIRECTORY /home/dom/computecpp-ce-0.5.1/include)
-set(SYCL_PARALLEL_STL_INCLUDE_DIRECTORY /home/dom/sycl_parallel_stl/include)
+#set(COMPUTECPP_PACKAGE_ROOT_DIR /home/dom/computecpp-ce-0.5.1)
+#set(COMPUTECPP_INCLUDE_DIRECTORY /home/dom/computecpp-ce-0.5.1/include)
+#set(SYCL_PARALLEL_STL_INCLUDE_DIRECTORY /home/dom/sycl_parallel_stl/include)
 
-set(CMAKE_MODULE_PATH /home/dom/computecpp-sdk/cmake/Modules/)
-include(FindComputeCpp)
+#set(CMAKE_MODULE_PATH /home/dom/computecpp-sdk/cmake/Modules/)
+#include(FindComputeCpp)
 
 #include_directories("/opt/intel/pstl/include")
 
-include_directories(${COMPUTECPP_INCLUDE_DIRECTORY})
-include_directories(${SYCL_PARALLEL_STL_INCLUDE_DIRECTORY})
-
-add_definitions(-DSYCL_PSTL_USE_OLD_ALGO)
-set(COMPUTECPP_DEVICE_COMPILER_FLAGS "-std=c++14 ${COMPUTECPP_DEVICE_COMPILER_FLAGS} -DSYCL_PSTL_USE_OLD_ALGO")
+#include_directories(${COMPUTECPP_INCLUDE_DIRECTORY})
+#include_directories(${SYCL_PARALLEL_STL_INCLUDE_DIRECTORY})
+#add_definitions(-DSYCL_PSTL_USE_OLD_ALGO)
+#Ęset(COMPUTECPP_DEVICE_COMPILER_FLAGS "-std=c++14 ${COMPUTECPP_DEVICE_COMPILER_FLAGS} -DSYCL_PSTL_USE_OLD_ALGO")
 
 # ${CMAKE_CURRENT_SOURCE_DIR}/
 
@@ -65,9 +64,10 @@ set(STL_FILES ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/kernels.cpp
               ${CMAKE_CURRENT_SOURCE_DIR}/src/stl/render.cpp)
 
 add_library(${appname}-stl ${STL_FILES})
-target_link_libraries(${appname}-stl PRIVATE ${common_libraries})
+target_link_libraries(${appname}-stl PRIVATE ${common_libraries} tbb)
+#SET_TARGET_PROPERTIES(${appname}-stl PROPERTIES COMPILE_FLAGS "-fopenmp")
 
-add_sycl_to_target(${appname}-stl ${CMAKE_CURRENT_BINARY_DIR} ${STL_FILES})
+#add_sycl_to_target(${appname}-stl ${CMAKE_CURRENT_BINARY_DIR} ${STL_FILES})
 add_version(${appname} stl "" "")
 
 # ----------------- OPENMP VERSION ----------------- 

@@ -1,5 +1,8 @@
 #include <kernels_stl.h>
 
+#include "pstl/execution"
+#include "pstl/algorithm"
+
 // inputSize should be called outputSize
 void raycastKernel(std::vector<std::pair<float3, float3>> &vertex_normals,
         uint2 inputSize,
@@ -11,9 +14,8 @@ void raycastKernel(std::vector<std::pair<float3, float3>> &vertex_normals,
         const float step,
         const float largestep) {
 
-    // lambda capture with pointer fields
-    //std::experimental::parallel::transform(par, pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
-    std::transform(pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
+    //std::transform(pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
+    std::transform(std::execution::par, pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
         uint x = pix % inputSize.x;
         uint y = pix / inputSize.x ;
         uint2 pos = make_uint2(x, y);
