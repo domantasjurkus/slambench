@@ -4,5 +4,5 @@
     --camera 481.2,480,320,240 \
     --compute-size-ratio 4 \
     --tracking-rate 1 \
-    --integration-rate 1 \
+    --integration-rate 2 \
     --rendering-rate 4

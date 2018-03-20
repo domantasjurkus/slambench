@@ -1,7 +1,4 @@
 #include <kernels_stl.h>
-#include <cstdlib>
-#include <commons.h>
-#include <parallel/algorithm>
 
 #include "pstl/execution"
 #include "pstl/algorithm"
@@ -9,11 +6,7 @@
 void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 depthSize, const float nearPlane, const float farPlane) {
     float rangeScale = 1 / (farPlane - nearPlane);
 
-
-    //std::transform(depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
-    __gnu_parallel::transform(depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
-    //std::experimental::parallel::transform(render_depth_par, depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
-    //std::transform(std::execution::par, depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
+    std::transform(std::execution::par, depth.begin(), depth.end(), out.begin(), [=](float depthValue) {
         if (depthValue < nearPlane) { return make_uchar4(255, 255, 255, 0); }
         if (depthValue > farPlane)  { return make_uchar4(0, 0, 0, 0); }
 
@@ -24,7 +17,6 @@ void renderDepthKernel(std::vector<uchar4> out, std::vector<float> depth, uint2 
 
 void renderTrackKernel(std::vector<uchar4> out, const std::vector<TrackData> data, uint2 outSize) {
 
-    //std::transform(data.begin(), data.end(), out.begin(), [=](TrackData td) {
     std::transform(std::execution::par, data.begin(), data.end(), out.begin(), [=](TrackData td) {
         uint r = td.result;
         if (r== 1) return make_uchar4(128, 128, 128, 0);
@@ -51,7 +43,6 @@ void renderVolumeKernel(std::vector<uchar4> out,
 
     const float3 origin = get_translation(view);
 
-    //std::transform(pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
     std::transform(std::execution::par, pixels.begin(), pixels.end(), out.begin(), [=](uint pos) {
         uint x = pos % depthSize.x;
         uint y = pos / depthSize.x;

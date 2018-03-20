@@ -61,12 +61,14 @@ void depth2vertexKernel(std::vector<float3> &vertex,
         uint2 imageSize,
         const Matrix4 invK) {
 
-    //std::transform(depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
-    std::transform(std::execution::par, depth.begin(), depth.end(), pixels.begin(), vertex.begin(), [=](float d, uint pos) {
+    std::transform(std::execution::par, depth.begin(), depth.end(),
+            pixels.begin(), vertex.begin(), [=](float d, uint pos) {
+
         uint x = pos % imageSize.x;
         uint y = pos / imageSize.x;
 
-        return (d>0) ? d * rotate(invK, make_float3(x,y,1.0f)) : make_float3(0);
+        return (d>0) ? d * rotate(invK, make_float3(x,y,1.0f))
+                     : make_float3(0);
     });
 }
 
@@ -115,7 +117,6 @@ void trackKernel(std::vector<TrackData> &output,
     std::vector<uint> pixels(inSize.x*inSize.y);
     std::iota(pixels.begin(), pixels.end(), 0);
 
-    //std::transform(pixels.begin(), pixels.end(), output.begin(), [=](uint pos) {
     std::transform(std::execution::par, pixels.begin(), pixels.end(), output.begin(), [&](uint pos) {
         uint x = pos % inSize.x;
         uint y = pos / inSize.x;
@@ -125,7 +126,6 @@ void trackKernel(std::vector<TrackData> &output,
         // If the input normal is invalid
         if (inNormal[x + y*inSize.x].x == KFUSION_INVALID) {
             row.result = -1;
-            //continue;
             return row;
         }
 
@@ -136,7 +136,6 @@ void trackKernel(std::vector<TrackData> &output,
                                              projectedPos.y / projectedPos.z + 0.5f);
         if (projPixel.x<0 || projPixel.x>refSize.x-1 || projPixel.y<0 || projPixel.y>refSize.y-1) {
             row.result = -2;
-            //continue;
             return row;
         }
 
@@ -146,7 +145,6 @@ void trackKernel(std::vector<TrackData> &output,
         // If the reference normal is invalid
         if (referenceNormal.x == KFUSION_INVALID) {
             row.result = -3;
-            //continue;
             return row;
         }
 
@@ -156,14 +154,12 @@ void trackKernel(std::vector<TrackData> &output,
         // If the coordinate difference is beyond a threshold (outlier)
         if (length(diff) > dist_threshold) {
             row.result = -4;
-            //continue;
             return row;
         }
 
         // If the normal product is below a threshold
         if (dot(projectedNormal, referenceNormal) < normal_threshold) {
             row.result = -5;
-            //continue;
             return row;
         }
         row.result = 1;
@@ -184,7 +180,6 @@ void new_reduce(std::vector<float> &out,
     std::array<float, 32> initial{};
     std::vector<std::array<float, 32>> intermediate(trackDataSize.x*trackDataSize.y);
 
-    //std::transform(trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
     std::transform(std::execution::par, trackData.begin(), trackData.end(), intermediate.begin(), [](TrackData td) {
         std::array<float, 32> entry{};
         
@@ -226,8 +221,6 @@ void new_reduce(std::vector<float> &out,
         return entry;
     });
 
-    //result = std::accumulate(intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
-    //result = std::reduce(std::execution::par, intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
     result = std::reduce(std::execution::par, intermediate.begin(), intermediate.end(), initial, [&](std::array<float, 32> acc, std::array<float, 32> entry) {
         for (int i=0; i<32; i++) {
             acc[i] += entry[i];

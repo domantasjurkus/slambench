@@ -3,7 +3,6 @@
 #include "pstl/execution"
 #include "pstl/algorithm"
 
-// inputSize should be called outputSize
 void raycastKernel(std::vector<std::pair<float3, float3>> &vertex_normals,
         uint2 inputSize,
         const Volume integration,
@@ -14,7 +13,6 @@ void raycastKernel(std::vector<std::pair<float3, float3>> &vertex_normals,
         const float step,
         const float largestep) {
 
-    //std::transform(pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
     std::transform(std::execution::par, pixels.begin(), pixels.end(), vertex_normals.begin(), [=](uint pix) {
         uint x = pix % inputSize.x;
         uint y = pix / inputSize.x ;

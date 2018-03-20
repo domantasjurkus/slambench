@@ -2,8 +2,7 @@
 #include <kfusion_class.h>
 #include <iostream>
 
-//#include <sycl/execution_policy>
-//#include <range/v3/all.hpp>
+#include "pstl/execution"
 
 inline double tock() {
 	synchroniseDevices();
@@ -25,12 +24,9 @@ std::vector<float> gaussian;
 
 // inter-frame
 Volume volume;
-//std::vector<float3> vertex;
-//std::vector<float3> normal;
 std::vector<std::pair<float3, float3>> vertex_normals;
 
 // intra-frame
-//std::vector<TrackData> trackingResult;
 std::vector<std::vector<TrackData>> trackingResult;
 Matrix4 oldPose;
 Matrix4 raycastPose;
@@ -72,26 +68,10 @@ void Kfusion::languageSpecificConstructor() {
 	pixels.resize(computationSize.x * computationSize.y);
 	std::iota(pixels.begin(), pixels.end(), 0);
 
-	// ********* BEGIN : Generate the gaussian *************
 	gaussian.resize(radius*2+1);
-
-	// auto g = ranges::view::ints(0, radius*2+1);
-	// ranges::transform(g, gaussian.begin(), [](float i) {
-	// 	return expf(-((i-2) * (i-2)) / (2 * delta * delta));
-	// });
-
-	// This is another way of generating a gaussian, but it looks more complicated than it has to be
-	std::generate(gaussian.begin(), gaussian.end(), [i=0] () mutable {
-		int x = i-2;
-		i++;
-		return expf(-(x*x) / (2*delta*delta));
-	});
-
-	// Original
-	/*for (auto i=0; i<gaussianS; i++) {
+	for (int i=0; i<gaussian.size(); i++) {
 		gaussian[i] = expf(-((i-2) * (i-2)) / (2 * delta * delta));
-	}*/
-	// ********* END : Generate the gaussian *************
+	}
 
 	volume.init(volumeResolution, volumeDimensions);
 	reset();
