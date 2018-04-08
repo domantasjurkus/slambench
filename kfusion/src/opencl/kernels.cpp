@@ -9,6 +9,7 @@
 
 #include "common_opencl.h"
 #include <kernels.h>
+#include <kfusion_class.h>
 
 #include <TooN/TooN.h>
 #include <TooN/se3.h>
@@ -66,14 +67,12 @@ void init() {
 
 void clean() {
 	opencl_clean();
-
-
 }
 
 void Kfusion::languageSpecificConstructor() {
 
-	init();
-
+	//init();
+	opencl_init();
 	
 	cl_ulong maxMemAlloc;
 	clGetDeviceInfo(device_id, CL_DEVICE_MAX_MEM_ALLOC_SIZE, sizeof(maxMemAlloc), &maxMemAlloc, NULL);

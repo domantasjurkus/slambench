@@ -9,6 +9,7 @@
 
 #define EXTERNS TRUE
 #include "kernels.h"
+#include "kfusion_class.h"
 #include <stdlib.h>
 #include "interface.h"
 #include <perfstats.h>

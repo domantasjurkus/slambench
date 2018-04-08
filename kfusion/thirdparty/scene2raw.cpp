@@ -13,14 +13,15 @@
 #include <iostream>
 #include <string>
 #include <iterator>
-#include<stdint.h>
-#include<vector>
+#include <stdint.h>
+#include <vector>
 #include <sstream>
 #include <string>
 #include <cstring>
 #include <cmath>
 
 #include "lodepng.h"
+#include "vector_types.h"
 
 #include <sstream>
 #include <iomanip>
@@ -37,7 +38,8 @@ static const float _v0 = SceneK[1][2];
 static const float _focal_x = SceneK[0][0];
 static const float _focal_y = SceneK[1][1];
 
-struct uchar3 {
+// Redefinition from vector_types.h
+/*struct uchar3 {
 	unsigned char x, y, z;
 };
 struct uchar4 {
@@ -46,9 +48,9 @@ struct uchar4 {
 
 struct uint2 {
 	unsigned int x, y;
-};
+};*/
 
-inline uchar3 make_uchar3(unsigned char x, unsigned char y, unsigned char z) {
+/*inline uchar3 make_uchar3(unsigned char x, unsigned char y, unsigned char z) {
 	uchar3 val;
 	val.x = x;
 	val.y = y;
@@ -71,7 +73,7 @@ inline uint2 make_uint2(unsigned int x, unsigned int y) {
 	val.x = x;
 	val.y = y;
 	return val;
-}
+}*/
 
 int readDepthFile(ushort * depthMap, const char * filename) {
 

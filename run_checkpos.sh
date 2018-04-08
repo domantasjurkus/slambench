@@ -1,0 +1,1 @@
+python2 kfusion/thirdparty/checkPos.py benchmark.log ../ground_truth.txt

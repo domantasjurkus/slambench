@@ -1,6 +1,7 @@
 # compile files
 build/
 *.log
+cmake-build-debug
 
 # binaries
 kfusion/tests/dataset/
@@ -11,12 +12,17 @@ scene/
 .project
 .settings/
 
+# intellij files
+.idea/
+
 living_room_*
 livingRoom*.gt.freiburg
 
 #editor backups
 *~
 
+.vscode
 TooN/
 OpenNI2dev/
-libfreenect/
+log_cpp.txt
+log_stl.txt

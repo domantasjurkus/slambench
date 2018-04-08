@@ -7,6 +7,13 @@
 
  */
 #include <kernels.h>
+#include <kfusion_class.h>
+
+inline double tock() {
+	struct timespec clockData;
+	clock_gettime(CLOCK_MONOTONIC, &clockData);
+	return (double) clockData.tv_sec + clockData.tv_nsec / 1000000000.0;
+}
 
 #ifdef __APPLE__
 #include <mach/clock.h>
@@ -63,6 +70,10 @@ bool print_kernel_timing = false;
 	struct timespec tick_clockData;
 	struct timespec tock_clockData;
 #endif
+
+std::array<double, 11> times{};
+int frame_count;
+double a;
 	
 void Kfusion::languageSpecificConstructor() {
 
@@ -112,6 +123,23 @@ void Kfusion::languageSpecificConstructor() {
 }
 
 Kfusion::~Kfusion() {
+	std::cout << "Total times: ";
+	for (int i=0; i<12; i++)
+		times[i] /= frame_count;
+		
+	std::cout << "Total times: ";
+	printf("%f %s\n", times[0], "mm2meters");
+	printf("%f %s\n", times[1], "bilateralFilter");
+	printf("%f %s\n", times[2], "halfSample");
+	printf("%f %s\n", times[3], "depth2vertex");
+	printf("%f %s\n", times[4], "vertex2normal");
+	printf("%f %s\n", times[5], "track");
+	printf("%f %s\n", times[6], "reduce");
+	printf("%f %s\n", times[7], "integrate");
+	printf("%f %s\n", times[8], "raycast");
+	printf("%f %s\n", times[9], "renderDepth");
+	printf("%f %s\n", times[10], "renderTrack");
+	printf("%f %s\n", times[11], "renderVolume");
 
 	free(floatDepth);
 	free(trackingResult);
@@ -393,10 +421,9 @@ void reduceKernel(float * out, TrackData* J, const uint2 Jsize,
 	TICK();
 	int blockIndex;
 #ifdef OLDREDUCE
-#pragma omp parallel for private (blockIndex)
+	#pragma omp parallel for private (blockIndex)
 #endif
 	for (blockIndex = 0; blockIndex < 8; blockIndex++) {
-
 #ifdef OLDREDUCE
 		float S[112][32]; // this is for the final accumulation
 		// we have 112 threads in a blockdim
@@ -494,6 +521,7 @@ void reduceKernel(float * out, TrackData* J, const uint2 Jsize,
 	TOCK("reduceKernel", 512);
 }
 
+// TrackData includes the errors (for far I am to the pixel in front of me)
 void trackKernel(TrackData* output, const float3* inVertex,
 		const float3* inNormal, uint2 inSize, const float3* refVertex,
 		const float3* refNormal, uint2 refSize, const Matrix4 Ttrack,
@@ -625,6 +653,9 @@ void halfSampleRobustImageKernel(float* out, const float* in, uint2 inSize,
 	TOCK("halfSampleRobustImageKernel", outSize.x * outSize.y);
 }
 
+// Given the point cloud, how to update the volume
+// In-place transformation (side-effect to an argument) because we (usually) don't have enough memory
+// to store two Volumes in RAM
 void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 		const Matrix4 invTrack, const Matrix4 K, const float mu,
 		const float maxweight) {
@@ -633,6 +664,10 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 			make_float3(0, 0, vol.dim.z / vol.size.z));
 	const float3 cameraDelta = rotate(K, delta);
 	unsigned int y;
+
+    // We shouldn't parallelize it - but we did
+    // There may be data races here
+
 #pragma omp parallel for \
         shared(vol), private(y)
 	for (y = 0; y < vol.size.y; y++)
@@ -662,8 +697,7 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 				if (diff > -mu) {
 					const float sdf = fminf(1.f, diff / mu);
 					float2 data = vol[pix];
-					data.x = clamp((data.y * data.x + sdf) / (data.y + 1), -1.f,
-							1.f);
+					data.x = clamp((data.y * data.x + sdf) / (data.y + 1), -1.f, 1.f);
 					data.y = fminf(data.y + 1, maxweight);
 					vol.set(pix, data);
 				}
@@ -671,6 +705,8 @@ void integrateKernel(Volume vol, const float* depth, uint2 depthSize,
 		}
 	TOCK("integrateKernel", vol.size.x * vol.size.y);
 }
+
+// Mapping of a point in the 3D world to the camera plane
 float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
 		const float nearPlane, const float farPlane, const float step,
 		const float largestep) {
@@ -690,10 +726,8 @@ float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
 	const float3 tmax = fmaxf(ttop, tbot);
 
 	// find the largest tmin and the smallest tmax
-	const float largest_tmin = fmaxf(fmaxf(tmin.x, tmin.y),
-			fmaxf(tmin.x, tmin.z));
-	const float smallest_tmax = fminf(fminf(tmax.x, tmax.y),
-			fminf(tmax.x, tmax.z));
+	const float largest_tmin = fmaxf(fmaxf(tmin.x, tmin.y), fmaxf(tmin.x, tmin.z));
+	const float smallest_tmax = fminf(fminf(tmax.x, tmax.y), fminf(tmax.x, tmax.z));
 
 	// check against near and far plane
 	const float tnear = fmaxf(largest_tmin, nearPlane);
@@ -703,9 +737,12 @@ float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
 		// first walk with largesteps until we found a hit
 		float t = tnear;
 		float stepsize = largestep;
+
+        // f_t = avg. distance to the nearest point in the volume (?)
 		float f_t = volume.interp(origin + direction * t);
 		float f_tt = 0;
 		if (f_t > 0) { // ups, if we were already in it, then don't render anything here
+
 			for (; t < tfar; t += stepsize) {
 				f_tt = volume.interp(origin + direction * t);
 				if (f_tt < 0)                  // got it, jump out of inner loop
@@ -723,6 +760,11 @@ float4 raycast(const Volume volume, const uint2 pos, const Matrix4 view,
 	return make_float4(0);
 
 }
+
+// Voxel grid (Volume) to point cloud
+// Takes volume, produces point cloud
+// Volume does not include normals
+// inputSize should be called outputSize
 void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 		const Volume integration, const Matrix4 view, const float nearPlane,
 		const float farPlane, const float step, const float largestep) {
@@ -730,13 +772,17 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 	unsigned int y;
 #pragma omp parallel for \
 	    shared(normal, vertex), private(y)
+
+    //
 	for (y = 0; y < inputSize.y; y++)
 		for (unsigned int x = 0; x < inputSize.x; x++) {
 
 			uint2 pos = make_uint2(x, y);
 
-			const float4 hit = raycast(integration, pos, view, nearPlane,
-					farPlane, step, largestep);
+            // view = used for camera transformation
+            // nearPlane = threshold
+            // farPlane = threshold
+			const float4 hit = raycast(integration, pos, view, nearPlane, farPlane, step, largestep);
 			if (hit.w > 0.0) {
 				vertex[pos.x + pos.y * inputSize.x] = make_float3(hit);
 				float3 surfNorm = integration.grad(make_float3(hit));
@@ -756,8 +802,7 @@ void raycastKernel(float3* vertex, float3* normal, uint2 inputSize,
 	TOCK("raycastKernel", inputSize.x * inputSize.y);
 }
 
-bool updatePoseKernel(Matrix4 & pose, const float * output,
-		float icp_threshold) {
+bool updatePoseKernel(Matrix4 & pose, const float * output, float icp_threshold) {
 	bool res = false;
 	TICK();
 	// Update the pose regarding the tracking result
@@ -791,11 +836,13 @@ bool checkPoseKernel(Matrix4 & pose, Matrix4 oldPose, const float * output,
 
 }
 
-void renderNormalKernel(uchar3* out, const float3* normal, uint2 normalSize) {
+/*void renderNormalKernel(uchar3* out, const float3* normal, uint2 normalSize) {
 	TICK();
 	unsigned int y;
 #pragma omp parallel for \
         shared(out), private(y)
+
+
 	for (y = 0; y < normalSize.y; y++)
 		for (unsigned int x = 0; x < normalSize.x; x++) {
 			uint pos = (x + y * normalSize.x);
@@ -809,7 +856,7 @@ void renderNormalKernel(uchar3* out, const float3* normal, uint2 normalSize) {
 			}
 		}
 	TOCK("renderNormalKernel", normalSize.x * normalSize.y);
-}
+}*/
 
 void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize,
 		const float nearPlane, const float farPlane) {
@@ -820,6 +867,8 @@ void renderDepthKernel(uchar4* out, float * depth, uint2 depthSize,
 	unsigned int y;
 #pragma omp parallel for \
         shared(out), private(y)
+
+    // Map/transform
 	for (y = 0; y < depthSize.y; y++) {
 		int rowOffeset = y * depthSize.x;
 		for (unsigned int x = 0; x < depthSize.x; x++) {
@@ -847,6 +896,8 @@ void renderTrackKernel(uchar4* out, const TrackData* data, uint2 outSize) {
 	unsigned int y;
 #pragma omp parallel for \
         shared(out), private(y)
+
+    // Map/transform
 	for (y = 0; y < outSize.y; y++)
 		for (unsigned int x = 0; x < outSize.x; x++) {
 			uint pos = x + y * outSize.x;
@@ -877,6 +928,9 @@ void renderTrackKernel(uchar4* out, const TrackData* data, uint2 outSize) {
 	TOCK("renderTrackKernel", outSize.x * outSize.y);
 }
 
+// depthSize = 480x360
+// Exactly the same as a raycast
+// Output is a color
 void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
 		const Matrix4 view, const float nearPlane, const float farPlane,
 		const float step, const float largestep, const float3 light,
@@ -885,21 +939,21 @@ void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
 	unsigned int y;
 #pragma omp parallel for \
         shared(out), private(y)
+
+    // Foreach output pixel
+    // Computationally intensive - opportunity for speedup
 	for (y = 0; y < depthSize.y; y++) {
 		for (unsigned int x = 0; x < depthSize.x; x++) {
 			const uint pos = x + y * depthSize.x;
 
-			float4 hit = raycast(volume, make_uint2(x, y), view, nearPlane,
-					farPlane, step, largestep);
+			float4 hit = raycast(volume, make_uint2(x, y), view, nearPlane, farPlane, step, largestep);
 			if (hit.w > 0) {
 				const float3 test = make_float3(hit);
 				const float3 surfNorm = volume.grad(test);
 				if (length(surfNorm) > 0) {
 					const float3 diff = normalize(light - test);
-					const float dir = fmaxf(dot(normalize(surfNorm), diff),
-							0.f);
-					const float3 col = clamp(make_float3(dir) + ambient, 0.f,
-							1.f) * 255;
+					const float dir = fmaxf(dot(normalize(surfNorm), diff), 0.f);
+					const float3 col = clamp(make_float3(dir) + ambient, 0.f, 1.f) * 255;
 					out[pos] = make_uchar4(col.x, col.y, col.z, 0); // The forth value is a padding to align memory
 				} else {
 					out[pos] = make_uchar4(0, 0, 0, 0); // The forth value is a padding to align memory
@@ -913,10 +967,14 @@ void renderVolumeKernel(uchar4* out, const uint2 depthSize, const Volume volume,
 }
 
 bool Kfusion::preprocessing(const ushort * inputDepth, const uint2 inputSize) {
-
+	frame_count++;
+	a = tock();
 	mm2metersKernel(floatDepth, computationSize, inputDepth, inputSize);
+	times[0] = tock()-a;
+	a = tock();
 	bilateralFilterKernel(ScaledDepth[0], floatDepth, computationSize, gaussian,
 			e_delta, radius);
+	times[1] = tock()-a;
 
 	return true;
 }
@@ -928,38 +986,60 @@ bool Kfusion::tracking(float4 k, float icp_threshold, uint tracking_rate,
 		return false;
 
 	// half sample the input depth maps into the pyramid levels
+    // STL: foreach(iteration)
 	for (unsigned int i = 1; i < iterations.size(); ++i) {
+        // Produce pyramid
+		a = tock();
 		halfSampleRobustImageKernel(ScaledDepth[i], ScaledDepth[i - 1],
 				make_uint2(computationSize.x / (int) pow(2, i - 1),
 						computationSize.y / (int) pow(2, i - 1)), e_delta * 3, 1);
+		times[2] = tock()-a;
 	}
 
 	// prepare the 3D information from the input depth maps
 	uint2 localimagesize = computationSize;
+
+    // STL: foreach(iteration) no overlap
 	for (unsigned int i = 0; i < iterations.size(); ++i) {
 		Matrix4 invK = getInverseCameraMatrix(k / float(1 << i));
-		depth2vertexKernel(inputVertex[i], ScaledDepth[i], localimagesize,
-				invK);
+		a = tock();
+		depth2vertexKernel(inputVertex[i], ScaledDepth[i], localimagesize, invK);
+		times[3] = tock()-a;
+		a = tock();
 		vertex2normalKernel(inputNormal[i], inputVertex[i], localimagesize);
+		times[4] = tock()-a;
 		localimagesize = make_uint2(localimagesize.x / 2, localimagesize.y / 2);
 	}
 
 	oldPose = pose;
 	const Matrix4 projectReference = getCameraMatrix(k) * inverse(raycastPose);
 
+    // ICP
+	// Pyramid
+	// Start from smallest image, then bigger, then biggest
 	for (int level = iterations.size() - 1; level >= 0; --level) {
 		uint2 localimagesize = make_uint2(
 				computationSize.x / (int) pow(2, level),
 				computationSize.y / (int) pow(2, level));
+
+		// For each pyramid level
 		for (int i = 0; i < iterations[level]; ++i) {
 
+			// Both point clouds
+            // compute the error
+			a = tock();
 			trackKernel(trackingResult, inputVertex[level], inputNormal[level],
 					localimagesize, vertex, normal, computationSize, pose,
 					projectReference, dist_threshold, normal_threshold);
+			times[5] = tock()-a;
 
+			// Sum of the errors
+			a = tock();
 			reduceKernel(reductionoutput, trackingResult, computationSize,
 					localimagesize);
+			times[6] = tock()-a;
 
+			// correct for the errors
 			if (updatePoseKernel(pose, reductionoutput, icp_threshold))
 				break;
 
@@ -976,9 +1056,11 @@ bool Kfusion::raycasting(float4 k, float mu, uint frame) {
 
 	if (frame > 2) {
 		raycastPose = pose;
+		a = tock();
 		raycastKernel(vertex, normal, computationSize, volume,
 				raycastPose * getInverseCameraMatrix(k), nearPlane, farPlane,
 				step, 0.75f * mu);
+		times[8] = tock()-a;
 	}
 
 	return doRaycast;
@@ -992,8 +1074,10 @@ bool Kfusion::integration(float4 k, uint integration_rate, float mu,
 			computationSize, track_threshold);
 
 	if ((doIntegrate && ((frame % integration_rate) == 0)) || (frame <= 3)) {
+		a = tock();
 		integrateKernel(volume, floatDepth, computationSize, inverse(pose),
 				getCameraMatrix(k), mu, maxweight);
+		times[7] = tock()-a;
 		doIntegrate = true;
 	} else {
 		doIntegrate = false;
@@ -1031,18 +1115,25 @@ void Kfusion::dumpVolume(const char *filename) {
 
 void Kfusion::renderVolume(uchar4 * out, uint2 outputSize, int frame,
 		int raycast_rendering_rate, float4 k, float largestep) {
-	if (frame % raycast_rendering_rate == 0)
+	if (frame % raycast_rendering_rate == 0) {
+		a = tock();
 		renderVolumeKernel(out, outputSize, volume,
 				*(this->viewPose) * getInverseCameraMatrix(k), nearPlane,
 				farPlane * 2.0f, step, largestep, light, ambient);
+		times[11] = tock()-a;
+	}
 }
 
 void Kfusion::renderTrack(uchar4 * out, uint2 outputSize) {
+	a = tock();
 	renderTrackKernel(out, trackingResult, outputSize);
+	times[10] = tock()-a;
 }
 
 void Kfusion::renderDepth(uchar4 * out, uint2 outputSize) {
+	a = tock();
 	renderDepthKernel(out, floatDepth, outputSize, nearPlane, farPlane);
+	times[9] = tock()-a;
 }
 
 void Kfusion::computeFrame(const ushort * inputDepth, const uint2 inputSize,
